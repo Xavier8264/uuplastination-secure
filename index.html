@@ -1,6 +1,243 @@
-﻿<!doctype html>
-<html>
-  <!-- BUILD: secure-test-001 -->
-  <head><meta charset='utf-8'><title>UU Secure</title></head>
-  <body><h1>Secure site AUTO DEPLOY, please update</h1></body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UU Plastination — Secure Portal</title>
+  <meta name="description" content="Private, authenticated portal for UU Plastination team." />
+  <style>
+    :root{
+      --bg:#0b0f14;--card:#121923;--muted:#A9B1BC;--text:#E9EEF4;--accent:#5CC8FF;--ok:#47D18C;--warn:#FFB54C;--danger:#FF6B6B;--border:#223041;
+      --secure:#FF3B6E; /* distinct from public blue */
+      --secure-glow: rgba(255,59,110,.25);
+    }
+    @media (prefers-color-scheme: light){
+      :root{
+        --bg:#f7fbff; --card:#ffffff; --muted:#4A5A6A; --text:#0e1726; --accent:#0B84FF; --ok:#0EAD69; --warn:#C97700; --danger:#D93D3D; --border:#DFE7F1;
+        --secure:#D72D57; --secure-glow: rgba(215,45,87,.2);
+      }
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    a{color:var(--accent);text-decoration:none}
+    a:hover{text-decoration:underline}
+    .wrap{max-width:1100px;margin:0 auto;padding:1rem}
+    header{
+      position:sticky;top:0;z-index:10;
+      background:linear-gradient(180deg,rgba(0,0,0,.28),transparent),var(--bg);
+      backdrop-filter:saturate(120%) blur(6px);
+      border-bottom:1px solid var(--border);
+    }
+    .bar{display:flex;align-items:center;gap:.75rem;justify-content:space-between}
+    .brand{display:flex;gap:.75rem;align-items:center}
+    .logo{width:40px;height:40px;border-radius:10px;
+      background:conic-gradient(from 200deg at 50% 50%, var(--secure), #47D18C, #FFB54C, var(--secure));
+      box-shadow:0 2px 16px var(--secure-glow), 0 2px 10px rgba(0,0,0,.15)
+    }
+    .lock-badge{display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .6rem;border-radius:999px;border:1px solid var(--border);font-weight:700;
+      background: rgba(255,59,110,.08); color:var(--secure)}
+    nav a{margin-left:1rem;font-weight:600}
+    .hero{padding:2.2rem 0;border-bottom:1px solid var(--border);position:relative;overflow:hidden}
+    h1{font-size:clamp(1.6rem,3.2vw,2.2rem);margin:.2rem 0 .6rem}
+    .muted{color:var(--muted)}
+    .grid{display:grid;gap:1rem;margin:1.25rem 0 2rem;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1rem}
+    .card h3{margin:.2rem 0 .6rem;font-size:1.05rem}
+    .pill{display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .6rem;border-radius:999px;border:1px solid var(--border);font-size:.82rem}
+    .ok{color:var(--ok)} .warn{color:var(--warn)} .danger{color:var(--danger)}
+    .row{display:flex;gap:.75rem;flex-wrap:wrap}
+    ul.clean{list-style:none;padding:0;margin:.2rem 0}
+    ul.clean li{padding:.35rem 0;border-bottom:1px dashed var(--border)}
+    ul.clean li:last-child{border-bottom:none}
+    footer{border-top:1px solid var(--border);padding:1.25rem 0;color:var(--muted)}
+    .btn{display:inline-flex;align-items:center;gap:.5rem;font-weight:600;border:1px solid var(--border);padding:.6rem .9rem;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.02));text-decoration:none}
+    .btn:hover{transform:translateY(-1px)}
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(127,127,127,.12);border:1px solid var(--border);border-bottom-width:2px;border-radius:8px;padding:.2rem .4rem}
+    .two{display:grid;gap:1rem;grid-template-columns:1.1fr .9fr}
+    @media (max-width:900px){.two{grid-template-columns:1fr}}
+    .note{font-size:.9rem;line-height:1.4}
+    .table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .table th,.table td{padding:.6rem .7rem;border-bottom:1px solid var(--border);text-align:left}
+    .table tr:last-child td{border-bottom:none}
+    .tag{display:inline-block;padding:.16rem .5rem;border:1px solid var(--border);border-radius:999px;margin-right:.35rem;font-size:.78rem}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .banner{
+      display:flex;align-items:center;gap:.6rem;border:1px solid var(--secure);background:rgba(255,59,110,.10);
+      padding:.55rem .8rem;border-radius:10px; box-shadow:0 0 0 4px var(--secure-glow) inset
+    }
+    .banner strong{color:var(--secure)}
+    /* Secure watermark */
+    .watermark{
+      position:absolute; inset:0; pointer-events:none;
+      background:
+        repeating-linear-gradient(45deg, transparent 0 60px, rgba(255,59,110,.05) 60px 120px),
+        radial-gradient(600px 200px at 80% -20%, rgba(255,59,110,.08), transparent 60%),
+        radial-gradient(800px 260px at -10% 120%, rgba(92,200,255,.06), transparent 60%);
+    }
+    .watermark::after{
+      content:"SECURE • PRIVATE • AUTHENTICATED"; position:absolute; right:-2rem; top:35%;
+      transform:rotate(-90deg); letter-spacing:.2rem; font-weight:800; font-size:clamp(1.2rem,4vw,2rem);
+      color:rgba(255,59,110,.16);
+    }
+    .list-tight li{padding:.25rem 0;border-bottom:1px dashed var(--border)}
+    .list-tight li:last-child{border-bottom:none}
+    .accent-sec{color:var(--secure)}
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <div>
+        <strong>UU Plastination</strong><br/>
+        <span class="muted" style="font-size:.9rem">Secure Portal</span>
+      </div>
+    </div>
+    <nav>
+      <a href="/">← Public Home</a>
+      <a href="#tools">Tools</a>
+      <a href="#files">Files</a>
+      <a href="#ops">Ops</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero" aria-labelledby="secure-heading">
+    <div class="watermark" aria-hidden="true"></div>
+
+    <div class="banner" role="status" aria-live="polite">
+      <span>🔒</span>
+      <strong>Secure Area</strong>
+      <span class="muted">Authenticated users only. Internal documents & data allowed per policy.</span>
+      <span class="pill" style="margin-left:auto">Build: <span class="mono">secure-v1.0</span></span>
+    </div>
+
+    <div class="two" style="margin-top:1rem">
+      <div>
+        <h1 id="secure-heading">Welcome to the <span class="accent-sec">UU Plastination Secure Portal</span></h1>
+        <p class="muted">
+          You are in a private, authenticated space. Content here is not intended for public
+          distribution. Follow data-handling guidelines and keep files within the secure area.
+        </p>
+
+        <div class="row" style="margin-top:.8rem">
+          <span class="pill ok">Access: Granted</span>
+          <span class="pill">Role: <span class="mono">Team Member</span></span>
+          <span class="pill">2FA: <span class="mono">Required</span></span>
+        </div>
+
+        <div class="card" style="margin-top:1rem">
+          <h3>Quick Actions</h3>
+          <div class="row">
+            <a class="btn" href="#files">📁 Secure Files</a>
+            <a class="btn" href="#tools">🧰 Lab Tools</a>
+            <a class="btn" href="#ops">🖥️ Ops & Deploy</a>
+            <a class="btn" href="/">↩️ Back to Public</a>
+          </div>
+          <p class="note muted" style="margin-top:.8rem">
+            Tip: Press <span class="kbd">/</span> to focus search, <span class="kbd">?</span> for help.
+          </p>
+        </div>
+      </div>
+
+      <aside>
+        <div class="card">
+          <h3>Security Notice</h3>
+          <ul class="clean">
+            <li>Only share links within <span class="mono">/secure/</span>.</li>
+            <li>Do not move files to the public repo without review.</li>
+            <li>No personal data in commit messages.</li>
+            <li>Rotate secrets on role changes or exposure.</li>
+          </ul>
+        </div>
+        <div class="card" style="margin-top:1rem">
+          <h3>Portal Status</h3>
+          <ul class="clean">
+            <li><span class="ok">●</span> Uptime: <span class="mono">OK</span></li>
+            <li><span class="ok">●</span> Auth (Basic): <span class="mono">Enabled</span></li>
+            <li><span class="ok">●</span> TLS (Cloudflare): <span class="mono">Active</span></li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="files" class="wrap" style="padding:1.25rem 0">
+    <div class="grid">
+      <div class="card">
+        <h3>Secure Files</h3>
+        <p class="muted">Internal docs, SOPs, experiment logs, and reports.</p>
+        <ul class="list-tight clean">
+          <li>📄 <a href="#">SOP — Silicone Impregnation v3</a> <span class="tag">PDF</span></li>
+          <li>📄 <a href="#">Spec — Vacuum Control Box</a> <span class="tag">DOCX</span></li>
+          <li>📄 <a href="#">Log — Bubble Counter Trials</a> <span class="tag">XLSX</span></li>
+          <li>📄 <a href="#">Poster — Symposium Draft</a> <span class="tag">PPTX</span></li>
+        </ul>
+      </div>
+
+      <div class="card" id="tools">
+        <h3>Lab Tools</h3>
+        <p class="muted">Internal calculators and dashboards.</p>
+        <ul class="list-tight clean">
+          <li>🧮 <a href="#">Resin Mix Calculator</a></li>
+          <li>🌡️ <a href="#">Cure Schedule Planner</a></li>
+          <li>🌀 <a href="#">Wind Tunnel Test Notebook</a></li>
+          <li>🔧 <a href="#">Equipment Checkout</a></li>
+        </ul>
+      </div>
+
+      <div class="card" id="ops">
+        <h3>Operations & Deploy</h3>
+        <p class="muted">Internal notes for maintaining the site and services.</p>
+        <table class="table mono" aria-label="Operations table">
+          <tr><th>Component</th><th>Location</th><th>Notes</th></tr>
+          <tr><td>Public Repo</td><td>GitHub: <span class="muted">/public-site</span></td><td>Served at <span class="muted">/</span></td></tr>
+          <tr><td>Secure Repo</td><td>GitHub: <span class="muted">/secure-site</span></td><td>Served at <span class="muted">/secure/</span></td></tr>
+          <tr><td>Deploy</td><td>Raspberry Pi</td><td>Systemd rsync to Nginx docroots</td></tr>
+        </table>
+        <p class="note muted" style="margin-top:.6rem">
+          Reminder: <span class="kbd">git commit</span> → <span class="kbd">git push</span> triggers the Pi deploy service for each repo.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap" style="padding:0 0 1.5rem">
+    <div class="card">
+      <h3>Recent Activity</h3>
+      <ul class="clean mono">
+        <li>[secure-v1.0] Initial secure portal scaffold</li>
+        <li>[ops] Enabled HTTP auth on <span class="muted">/secure/</span></li>
+        <li>[docs] Added SOP v3</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <div class="row" style="justify-content:space-between;align-items:center">
+    <div>
+      <span class="lock-badge">🔒 SECURE PORTAL</span>
+      <span class="muted" style="margin-left:.5rem">Confidential — Internal Use Only</span>
+    </div>
+    <div class="muted">
+      <a href="/">Public Site</a> · <a href="#ops">Ops</a> · <a href="#">Log out</a>
+    </div>
+  </div>
+</footer>
+
+<!-- Optional keyboard shortcuts (no external deps) -->
+<script>
+  const focusSearch = () => {
+    const el = document.querySelector('input[type="search"]');
+    if (el) { el.focus(); el.select(); }
+  };
+  window.addEventListener('keydown', (e) => {
+    if (e.key === '/') { e.preventDefault(); focusSearch(); }
+    if (e.key === '?') { alert('Shortcuts:\\n / focus search\\n ? this help'); }
+  });
+</script>
+</body>
 </html>
