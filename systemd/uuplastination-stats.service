@@ -12,6 +12,16 @@ Environment=PYTHONUNBUFFERED=1
 # Environment=SERVICE_STEPPER=valve-control.service
 # Environment=PORT_RTSP=8554
 # Environment=PORT_API=8000
+# Stepper GPIO and tuning (BCM numbers)
+# Environment=STEPPER_PIN_STEP=23
+# Environment=STEPPER_PIN_DIR=24
+# Environment=STEPPER_PIN_ENABLE=18
+# Environment=STEPPER_STEPS_PER_REV=200
+# Environment=STEPPER_DEFAULT_RPM=60
+# Environment=STEPPER_INVERT_ENABLE=1
+# Optional convenience distances
+# Environment=STEPPER_OPEN_STEPS=200
+# Environment=STEPPER_CLOSE_STEPS=-200
 ExecStart=/usr/bin/env uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
 Restart=always
 RestartSec=3

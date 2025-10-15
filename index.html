@@ -204,6 +204,31 @@
     </div>
   </section>
 
+  <!-- Stepper Motor Control -->
+  <section id="actuators" class="wrap" style="padding:0 0 1.5rem">
+    <div class="card">
+      <h3>🦾 Stepper Motor Control</h3>
+      <p class="muted">Manual controls for the valve stepper. Actions are proxied to the local API and rate-limited by Nginx.</p>
+      <div class="row" style="margin:.5rem 0;gap:.6rem">
+        <button class="btn" id="btn-enable">Enable</button>
+        <button class="btn" id="btn-disable">Disable</button>
+        <button class="btn" id="btn-open">Open</button>
+        <button class="btn" id="btn-close">Close</button>
+        <button class="btn" id="btn-step-minus">Step -10</button>
+        <button class="btn" id="btn-step-plus">Step +10</button>
+        <button class="btn" id="btn-abort" style="border-color:var(--danger);color:var(--danger)">Abort</button>
+      </div>
+      <div class="row mono" style="gap:1rem">
+        <span>Status: <span id="stepper-state">--</span></span>
+        <span>Enabled: <span id="stepper-enabled">--</span></span>
+        <span>Moving: <span id="stepper-moving">--</span></span>
+        <span>Pos: <span id="stepper-pos">0</span></span>
+        <span>Err: <span id="stepper-err">-</span></span>
+      </div>
+      <div id="stepper-msg" class="muted" style="margin-top:.5rem"></div>
+    </div>
+  </section>
+
   <section class="wrap" style="padding:0 0 1.5rem">
     <div class="card">
       <h3>Recent Activity</h3>
@@ -353,6 +378,62 @@
   if (document.getElementById('pi-stats')) {
     updatePiStats();
     setInterval(updatePiStats, 5000);
+  }
+
+  // Stepper controls
+  async function fetchStepper(path, opts={}){
+    const res = await fetch(path, { method: 'POST', ...opts, headers: { 'Content-Type': 'application/json' }});
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(`${res.status} ${t}`);
+    }
+    return res.json().catch(()=>({}));
+  }
+
+  async function loadStepperStatus(){
+    try{
+      const res = await fetch('/api/stepper/status', { cache: 'no-store' });
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const s = await res.json();
+      document.getElementById('stepper-enabled').textContent = s.enabled ? 'yes' : 'no';
+      document.getElementById('stepper-moving').textContent = s.moving ? 'yes' : 'no';
+      document.getElementById('stepper-pos').textContent = s.position_steps ?? 0;
+      document.getElementById('stepper-err').textContent = s.last_error || '-';
+      document.getElementById('stepper-state').textContent = s.worker_alive ? 'worker:alive' : 'worker:idle';
+    }catch(e){
+      document.getElementById('stepper-state').textContent = 'unreachable';
+      document.getElementById('stepper-err').textContent = String(e);
+    }
+  }
+
+  function bindStepperButtons(){
+    const msg = document.getElementById('stepper-msg');
+    const busy = new Set();
+    const click = (id, fn) => {
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.addEventListener('click', async ()=>{
+        if (busy.has(id)) return; busy.add(id); el.disabled = true;
+        msg.textContent='';
+        try{ await fn(); msg.textContent = 'OK'; }
+        catch(e){ msg.textContent = 'Error: '+ e; }
+        finally{ await loadStepperStatus(); busy.delete(id); el.disabled=false; }
+      });
+    };
+
+    click('btn-enable', ()=> fetchStepper('/api/stepper/enable'));
+    click('btn-disable', ()=> fetchStepper('/api/stepper/disable'));
+    click('btn-open', ()=> fetchStepper('/api/stepper/open'));
+    click('btn-close', ()=> fetchStepper('/api/stepper/close'));
+    click('btn-abort', ()=> fetchStepper('/api/stepper/abort'));
+    click('btn-step-minus', ()=> fetchStepper('/api/stepper/step?steps=-10'));
+    click('btn-step-plus', ()=> fetchStepper('/api/stepper/step?steps=10'));
+  }
+
+  if (document.getElementById('actuators')){
+    bindStepperButtons();
+    loadStepperStatus();
+    setInterval(loadStepperStatus, 3000);
   }
 </script>
 </body>
