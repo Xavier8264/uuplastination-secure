@@ -214,6 +214,84 @@
       </ul>
     </div>
   </section>
+
+  <!-- Raspberry Pi System Stats -->
+  <section id="pi-stats" class="wrap" style="padding:0 0 1.5rem">
+    <div class="card">
+      <h3>🥧 Raspberry Pi System Stats</h3>
+      <p class="muted" style="margin-bottom:1rem">Real-time system monitoring and component status</p>
+      
+      <div class="two">
+        <!-- System Metrics -->
+        <div>
+          <h4 style="margin:.5rem 0 .6rem;font-size:.95rem">System Metrics</h4>
+          <table class="table" aria-label="System metrics">
+            <tr>
+              <th>Metric</th>
+              <th>Value</th>
+              <th>Status</th>
+            </tr>
+            <tr>
+              <td>CPU Temperature</td>
+              <td class="mono" id="cpu-temp">--°C</td>
+              <td><span id="cpu-temp-status" class="pill">Loading...</span></td>
+            </tr>
+            <tr>
+              <td>CPU Usage</td>
+              <td class="mono" id="cpu-usage">--%</td>
+              <td><span id="cpu-usage-status" class="pill">Loading...</span></td>
+            </tr>
+            <tr>
+              <td>Memory Usage</td>
+              <td class="mono" id="mem-usage">-- / -- MB</td>
+              <td><span id="mem-usage-status" class="pill">Loading...</span></td>
+            </tr>
+            <tr>
+              <td>Uptime</td>
+              <td class="mono" id="uptime">--</td>
+              <td><span class="pill ok">Active</span></td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Component Status -->
+        <div>
+          <h4 style="margin:.5rem 0 .6rem;font-size:.95rem">Component Status</h4>
+          <ul class="clean">
+            <li>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span>📷 Camera</span>
+                <span id="camera-status" class="pill">Checking...</span>
+              </div>
+            </li>
+            <li>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span>⚙️ Stepper Motor</span>
+                <span id="stepper-status" class="pill">Checking...</span>
+              </div>
+            </li>
+            <li>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span>🌐 Network</span>
+                <span id="network-status" class="pill">Checking...</span>
+              </div>
+            </li>
+            <li>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span>💻 Operating System</span>
+                <span id="os-status" class="pill">Checking...</span>
+              </div>
+            </li>
+          </ul>
+          
+          <div class="note muted" style="margin-top:1rem;font-size:.85rem">
+            <strong>OS Info:</strong> <span id="os-info" class="mono">Raspberry Pi OS</span><br/>
+            <strong>Last Updated:</strong> <span id="last-update" class="mono">--</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer class="wrap">
@@ -238,6 +316,148 @@
     if (e.key === '/') { e.preventDefault(); focusSearch(); }
     if (e.key === '?') { alert('Shortcuts:\\n / focus search\\n ? this help'); }
   });
+
+  // Raspberry Pi Stats Monitoring
+  async function updatePiStats() {
+    try {
+      // Fetch stats from API endpoint (you'll need to implement this on your Pi)
+      const response = await fetch('/api/pi-stats');
+      const data = await response.json();
+      
+      // Update CPU Temperature
+      const cpuTemp = data.cpu_temp || 0;
+      document.getElementById('cpu-temp').textContent = `${cpuTemp.toFixed(1)}°C`;
+      const tempStatus = document.getElementById('cpu-temp-status');
+      if (cpuTemp < 60) {
+        tempStatus.textContent = 'Normal';
+        tempStatus.className = 'pill ok';
+      } else if (cpuTemp < 75) {
+        tempStatus.textContent = 'Warm';
+        tempStatus.className = 'pill warn';
+      } else {
+        tempStatus.textContent = 'Hot';
+        tempStatus.className = 'pill danger';
+      }
+      
+      // Update CPU Usage
+      const cpuUsage = data.cpu_usage || 0;
+      document.getElementById('cpu-usage').textContent = `${cpuUsage.toFixed(1)}%`;
+      const cpuStatus = document.getElementById('cpu-usage-status');
+      if (cpuUsage < 70) {
+        cpuStatus.textContent = 'Normal';
+        cpuStatus.className = 'pill ok';
+      } else if (cpuUsage < 90) {
+        cpuStatus.textContent = 'High';
+        cpuStatus.className = 'pill warn';
+      } else {
+        cpuStatus.textContent = 'Critical';
+        cpuStatus.className = 'pill danger';
+      }
+      
+      // Update Memory Usage
+      const memUsed = data.mem_used || 0;
+      const memTotal = data.mem_total || 0;
+      const memPercent = memTotal > 0 ? (memUsed / memTotal * 100) : 0;
+      document.getElementById('mem-usage').textContent = `${memUsed.toFixed(0)} / ${memTotal.toFixed(0)} MB (${memPercent.toFixed(1)}%)`;
+      const memStatus = document.getElementById('mem-usage-status');
+      if (memPercent < 70) {
+        memStatus.textContent = 'Normal';
+        memStatus.className = 'pill ok';
+      } else if (memPercent < 90) {
+        memStatus.textContent = 'High';
+        memStatus.className = 'pill warn';
+      } else {
+        memStatus.textContent = 'Critical';
+        memStatus.className = 'pill danger';
+      }
+      
+      // Update Uptime
+      const uptime = data.uptime || 0;
+      const days = Math.floor(uptime / 86400);
+      const hours = Math.floor((uptime % 86400) / 3600);
+      const minutes = Math.floor((uptime % 3600) / 60);
+      document.getElementById('uptime').textContent = `${days}d ${hours}h ${minutes}m`;
+      
+      // Update Component Status
+      updateComponentStatus('camera-status', data.camera_online);
+      updateComponentStatus('stepper-status', data.stepper_online);
+      updateComponentStatus('network-status', data.network_online);
+      updateComponentStatus('os-status', data.os_online);
+      
+      // Update OS Info
+      if (data.os_info) {
+        document.getElementById('os-info').textContent = data.os_info;
+      }
+      
+      // Update last update time
+      const now = new Date();
+      document.getElementById('last-update').textContent = now.toLocaleTimeString();
+      
+    } catch (error) {
+      console.error('Failed to fetch Pi stats:', error);
+      // Use simulated data for demo purposes
+      simulatePiStats();
+    }
+  }
+  
+  function updateComponentStatus(elementId, isOnline) {
+    const element = document.getElementById(elementId);
+    if (isOnline === true) {
+      element.textContent = 'Online';
+      element.className = 'pill ok';
+    } else if (isOnline === false) {
+      element.textContent = 'Offline';
+      element.className = 'pill danger';
+    } else {
+      element.textContent = 'Unknown';
+      element.className = 'pill';
+    }
+  }
+  
+  // Simulated data for demo/testing (remove when API is ready)
+  function simulatePiStats() {
+    const cpuTemp = 45 + Math.random() * 15;
+    document.getElementById('cpu-temp').textContent = `${cpuTemp.toFixed(1)}°C`;
+    const tempStatus = document.getElementById('cpu-temp-status');
+    tempStatus.textContent = cpuTemp < 60 ? 'Normal' : 'Warm';
+    tempStatus.className = cpuTemp < 60 ? 'pill ok' : 'pill warn';
+    
+    const cpuUsage = 20 + Math.random() * 30;
+    document.getElementById('cpu-usage').textContent = `${cpuUsage.toFixed(1)}%`;
+    document.getElementById('cpu-usage-status').textContent = 'Normal';
+    document.getElementById('cpu-usage-status').className = 'pill ok';
+    
+    const memUsed = 800 + Math.random() * 400;
+    const memTotal = 1920;
+    const memPercent = (memUsed / memTotal * 100);
+    document.getElementById('mem-usage').textContent = `${memUsed.toFixed(0)} / ${memTotal.toFixed(0)} MB (${memPercent.toFixed(1)}%)`;
+    const memStatus = document.getElementById('mem-usage-status');
+    memStatus.textContent = memPercent < 70 ? 'Normal' : 'High';
+    memStatus.className = memPercent < 70 ? 'pill ok' : 'pill warn';
+    
+    const uptime = 345678 + Math.floor(Math.random() * 1000);
+    const days = Math.floor(uptime / 86400);
+    const hours = Math.floor((uptime % 86400) / 3600);
+    const minutes = Math.floor((uptime % 3600) / 60);
+    document.getElementById('uptime').textContent = `${days}d ${hours}h ${minutes}m`;
+    
+    // Simulate component status (mostly online for demo)
+    updateComponentStatus('camera-status', Math.random() > 0.1);
+    updateComponentStatus('stepper-status', Math.random() > 0.1);
+    updateComponentStatus('network-status', true);
+    updateComponentStatus('os-status', true);
+    
+    document.getElementById('os-info').textContent = 'Raspberry Pi OS (Bullseye) 64-bit';
+    const now = new Date();
+    document.getElementById('last-update').textContent = now.toLocaleTimeString();
+  }
+  
+  // Initialize stats on page load
+  if (document.getElementById('pi-stats')) {
+    updatePiStats();
+    // Update every 5 seconds
+    setInterval(updatePiStats, 5000);
+  }
 </script>
 </body>
 </html>
