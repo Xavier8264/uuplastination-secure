@@ -1,7 +1,12 @@
 /**
- * Dashboard JavaScript - Apple HIG Inspired
- * Theme toggle, fullscreen, interactions, and data fetching
+ * Dashboard JavaScript - Apple Dark Mode Inspired
+ * Enhanced with recording control, mock data, and simple chart rendering
  */
+
+// ========== CONFIGURATION ==========
+const MOCK_DATA = true; // Set to false when real endpoints are available
+const UPDATE_INTERVAL = 5000; // 5 seconds
+const CHART_UPDATE_INTERVAL = 2000; // 2 seconds for chart animation
 
 // ========== THEME MANAGEMENT ==========
 class ThemeManager {
@@ -11,18 +16,15 @@ class ThemeManager {
   }
 
   init() {
-    // Load saved theme or detect system preference
     const savedTheme = localStorage.getItem(this.storageKey);
     
     if (savedTheme) {
       this.setTheme(savedTheme);
     } else {
-      // Auto-detect from system
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       this.setTheme(prefersDark ? 'dark' : 'light');
     }
 
-    // Listen for system theme changes
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
       if (!localStorage.getItem(this.storageKey)) {
         this.setTheme(e.matches ? 'dark' : 'light');
@@ -37,7 +39,7 @@ class ThemeManager {
   }
 
   toggleTheme() {
-    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
     const next = current === 'light' ? 'dark' : 'light';
     this.setTheme(next);
   }
@@ -45,17 +47,64 @@ class ThemeManager {
   updateToggleIcon(theme) {
     const toggle = document.getElementById('theme-toggle');
     if (toggle) {
-      toggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+      toggle.querySelector('span').textContent = theme === 'dark' ? '☀️' : '🌙';
       toggle.setAttribute('aria-label', `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`);
     }
   }
+}
 
-  getCurrentTheme() {
-    return document.documentElement.getAttribute('data-theme') || 'light';
+// ========== RECORDING CONTROL ==========
+class RecordingControl {
+  constructor() {
+    this.recording = false;
+    this.button = document.getElementById('recording-control');
+    this.dot = document.getElementById('recording-dot');
+    this.text = document.getElementById('recording-text');
+    this.init();
+  }
+
+  init() {
+    if (!this.button) return;
+
+    this.button.addEventListener('click', () => this.toggle());
+  }
+
+  toggle() {
+    this.recording = !this.recording;
+    this.updateUI();
+    
+    // TODO: Wire to backend recording endpoint
+    console.log(`Recording ${this.recording ? 'started' : 'stopped'}`);
+  }
+
+  updateUI() {
+    if (this.recording) {
+      this.button.classList.add('recording');
+      this.dot.className = 'recording-dot';
+      this.text.textContent = 'Recording…';
+    } else {
+      this.button.classList.remove('recording');
+      this.dot.className = 'recording-dot-hollow';
+      this.text.textContent = 'Record';
+    }
+  }
+
+  start() {
+    if (!this.recording) {
+      this.recording = true;
+      this.updateUI();
+    }
+  }
+
+  stop() {
+    if (this.recording) {
+      this.recording = false;
+      this.updateUI();
+    }
   }
 }
 
-// ========== CAMERA/VIDEO MANAGEMENT ==========
+// ========== CAMERA MANAGEMENT ==========
 class CameraManager {
   constructor(elementId) {
     this.element = document.getElementById(elementId);
@@ -67,12 +116,10 @@ class CameraManager {
   init() {
     if (!this.element) return;
 
-    // Fullscreen button handler
     if (this.fullscreenBtn) {
       this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
     }
 
-    // Keyboard shortcut: 'f' for fullscreen
     document.addEventListener('keydown', (e) => {
       if (e.key === 'f' && document.activeElement.tagName !== 'INPUT') {
         e.preventDefault();
@@ -80,7 +127,6 @@ class CameraManager {
       }
     });
 
-    // Handle fullscreen change events
     document.addEventListener('fullscreenchange', () => this.onFullscreenChange());
     document.addEventListener('webkitfullscreenchange', () => this.onFullscreenChange());
   }
@@ -88,14 +134,12 @@ class CameraManager {
   async toggleFullscreen() {
     try {
       if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-        // Enter fullscreen
         if (this.element.requestFullscreen) {
           await this.element.requestFullscreen();
         } else if (this.element.webkitRequestFullscreen) {
           await this.element.webkitRequestFullscreen();
         }
       } else {
-        // Exit fullscreen
         if (document.exitFullscreen) {
           await document.exitFullscreen();
         } else if (document.webkitExitFullscreen) {
@@ -110,7 +154,218 @@ class CameraManager {
   onFullscreenChange() {
     const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
     if (this.fullscreenBtn) {
-      this.fullscreenBtn.textContent = isFullscreen ? '⤓ Exit Fullscreen' : '⤢ Fullscreen';
+      const span = this.fullscreenBtn.querySelector('span');
+      if (span) span.textContent = isFullscreen ? '⤓' : '⤢';
+      this.fullscreenBtn.childNodes[1].textContent = isFullscreen ? ' Exit Fullscreen' : ' Fullscreen';
+    }
+  }
+}
+
+// ========== MOCK DATA GENERATORS ==========
+class MockDataGenerator {
+  constructor() {
+    this.bubbleRate = 70;
+    this.bubbleRateHistory = [];
+    this.initHistory();
+  }
+
+  initHistory() {
+    // Initialize with 100 data points
+    const now = Date.now();
+    for (let i = 100; i >= 0; i--) {
+      this.bubbleRateHistory.push({
+        time: now - i * 10000, // 10 second intervals
+        value: 65 + Math.random() * 10
+      });
+    }
+  }
+
+  getBubbleRate() {
+    // Simulate realistic BPM variation
+    this.bubbleRate += (Math.random() - 0.5) * 3;
+    this.bubbleRate = Math.max(60, Math.min(85, this.bubbleRate));
+    
+    const delta = (Math.random() - 0.5) * 3;
+    
+    // Add to history
+    this.bubbleRateHistory.push({
+      time: Date.now(),
+      value: this.bubbleRate
+    });
+    
+    // Keep only last 1000 points
+    if (this.bubbleRateHistory.length > 1000) {
+      this.bubbleRateHistory.shift();
+    }
+    
+    return {
+      bpm: Math.round(this.bubbleRate * 10) / 10,
+      delta: Math.round(delta * 10) / 10
+    };
+  }
+
+  getSystemStats() {
+    return {
+      cpu: {
+        temp_c: 45 + Math.random() * 5,
+        usage_percent: 30 + Math.random() * 25
+      },
+      memory: {
+        used: 2.1 + Math.random() * 0.3,
+        total: 4,
+        percent: 52 + Math.random() * 8
+      },
+      uptime_seconds: 478932 + Math.floor(Math.random() * 100),
+      services: {
+        camera: Math.random() > 0.1 ? 'active' : 'inactive',
+        stepper: Math.random() > 0.05 ? 'active' : 'inactive',
+        nginx: 'active',
+        api: 'active'
+      }
+    };
+  }
+
+  getStepperStatus() {
+    return {
+      enabled: true,
+      moving: false,
+      position_steps: Math.floor(Math.random() * 200),
+        worker_alive: true,
+      last_error: null
+    };
+  }
+}
+
+// ========== SIMPLE CHART RENDERER ==========
+class BubbleChart {
+  constructor(canvasId) {
+    this.canvas = document.getElementById(canvasId);
+    this.ctx = this.canvas?.getContext('2d');
+    this.dataPoints = [];
+    this.timeRange = '15m'; // Default
+    this.init();
+  }
+
+  init() {
+    if (!this.canvas) return;
+
+    // Set canvas size
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+
+    // Bind time range controls
+    const chips = document.querySelectorAll('.chart-chip');
+    chips.forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        chips.forEach(c => c.classList.remove('active'));
+        e.target.classList.add('active');
+        this.timeRange = e.target.dataset.range;
+        this.render();
+      });
+    });
+  }
+
+  resize() {
+    if (!this.canvas) return;
+    const rect = this.canvas.parentElement.getBoundingClientRect();
+    this.canvas.width = rect.width * window.devicePixelRatio;
+    this.canvas.height = rect.height * window.devicePixelRatio;
+    this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    this.render();
+  }
+
+  updateData(dataPoints) {
+    this.dataPoints = dataPoints;
+    this.render();
+  }
+
+  render() {
+    if (!this.ctx || this.dataPoints.length === 0) return;
+
+    const width = this.canvas.width / window.devicePixelRatio;
+    const height = this.canvas.height / window.devicePixelRatio;
+    const padding = 40;
+
+    // Clear canvas
+    this.ctx.clearRect(0, 0, width, height);
+
+    // Filter data by time range
+    const now = Date.now();
+    const ranges = { '15m': 15 * 60 * 1000, '1h': 60 * 60 * 1000, '6h': 6 * 60 * 60 * 1000, '24h': 24 * 60 * 60 * 1000 };
+    const cutoff = now - ranges[this.timeRange];
+    const filtered = this.dataPoints.filter(p => p.time >= cutoff);
+
+    if (filtered.length < 2) return;
+
+    // Find min/max values
+    const values = filtered.map(p => p.value);
+    const minVal = Math.min(...values) - 5;
+    const maxVal = Math.max(...values) + 5;
+
+    // Draw grid lines
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    this.ctx.lineWidth = 1;
+    for (let i = 0; i <= 5; i++) {
+      const y = padding + (height - 2 * padding) * i / 5;
+      this.ctx.beginPath();
+      this.ctx.moveTo(padding, y);
+      this.ctx.lineTo(width - padding, y);
+      this.ctx.stroke();
+    }
+
+    // Draw area fill
+    this.ctx.beginPath();
+    filtered.forEach((point, i) => {
+      const x = padding + (width - 2 * padding) * i / (filtered.length - 1);
+      const y = height - padding - ((point.value - minVal) / (maxVal - minVal)) * (height - 2 * padding);
+      
+      if (i === 0) {
+        this.ctx.moveTo(x, y);
+      } else {
+        this.ctx.lineTo(x, y);
+      }
+    });
+
+    // Close the area
+    const lastX = padding + (width - 2 * padding);
+    const lastY = height - padding - ((filtered[filtered.length - 1].value - minVal) / (maxVal - minVal)) * (height - 2 * padding);
+    this.ctx.lineTo(lastX, height - padding);
+    this.ctx.lineTo(padding, height - padding);
+    this.ctx.closePath();
+
+    // Fill area with gradient
+    const gradient = this.ctx.createLinearGradient(0, padding, 0, height - padding);
+    gradient.addColorStop(0, 'rgba(10, 132, 255, 0.3)');
+    gradient.addColorStop(1, 'rgba(10, 132, 255, 0.05)');
+    this.ctx.fillStyle = gradient;
+    this.ctx.fill();
+
+    // Draw line
+    this.ctx.beginPath();
+    filtered.forEach((point, i) => {
+      const x = padding + (width - 2 * padding) * i / (filtered.length - 1);
+      const y = height - padding - ((point.value - minVal) / (maxVal - minVal)) * (height - 2 * padding);
+      
+      if (i === 0) {
+        this.ctx.moveTo(x, y);
+      } else {
+        this.ctx.lineTo(x, y);
+      }
+    });
+    this.ctx.strokeStyle = '#0A84FF';
+    this.ctx.lineWidth = 2;
+    this.ctx.stroke();
+
+    // Draw axes labels
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    this.ctx.font = '12px SF Mono, monospace';
+    this.ctx.textAlign = 'right';
+    
+    // Y-axis labels
+    for (let i = 0; i <= 5; i++) {
+      const val = minVal + (maxVal - minVal) * (5 - i) / 5;
+      const y = padding + (height - 2 * padding) * i / 5;
+      this.ctx.fillText(Math.round(val), padding - 10, y + 4);
     }
   }
 }
@@ -119,13 +374,15 @@ class CameraManager {
 class DataManager {
   constructor() {
     this.updateInterval = null;
-    this.statsEndpoint = '/api/stats';
-    this.statusEndpoint = '/api/status';
-    this.metricsEndpoint = '/api/metrics';
-    this.stepperStatusEndpoint = '/api/stepper/status';
+    this.mockData = MOCK_DATA ? new MockDataGenerator() : null;
+    this.chart = new BubbleChart('bubble-chart-canvas');
   }
 
   async fetchJSON(url, options = {}) {
+    if (MOCK_DATA) {
+      throw new Error('Mock mode enabled');
+    }
+
     try {
       const response = await fetch(url, {
         ...options,
@@ -137,104 +394,128 @@ class DataManager {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(`HTTP ${response.status}`);
       }
 
       return await response.json();
     } catch (error) {
-      console.error(`Fetch error for ${url}:`, error);
       throw error;
     }
   }
 
   async updateBubbleRate() {
     try {
-      const data = await this.fetchJSON(this.metricsEndpoint);
-      const bpm = data?.bubble_rate_bpm || 0;
-      const delta = data?.bubble_rate_delta || 0;
+      let data;
+      
+      if (MOCK_DATA) {
+        data = this.mockData.getBubbleRate();
+      } else {
+        data = await this.fetchJSON('/api/metrics');
+      }
 
       const valueEl = document.getElementById('bubble-rate-value');
       const deltaEl = document.getElementById('bubble-rate-delta');
 
       if (valueEl) {
-        valueEl.textContent = Math.round(bpm);
+        valueEl.textContent = data.bpm || 0;
       }
 
       if (deltaEl) {
+        const delta = data.delta || 0;
         const sign = delta >= 0 ? '+' : '';
-        deltaEl.textContent = `${delta >= 0 ? '▲' : '▼'} ${sign}${delta} vs last min`;
+        deltaEl.textContent = `${delta >= 0 ? '▲' : '▼'} ${sign}${delta.toFixed(1)} vs 5min avg`;
         deltaEl.className = `metric-delta ${delta > 0 ? 'up' : delta < 0 ? 'down' : 'neutral'}`;
       }
     } catch (error) {
-      // Graceful degradation - use mock data
-      this.useMockBubbleRate();
-    }
-  }
-
-  useMockBubbleRate() {
-    const valueEl = document.getElementById('bubble-rate-value');
-    const deltaEl = document.getElementById('bubble-rate-delta');
-
-    if (valueEl) {
-      // Generate realistic mock data with slight variation
-      const baseBPM = 68;
-      const variation = Math.floor(Math.random() * 10) - 5;
-      valueEl.textContent = baseBPM + variation;
-    }
-
-    if (deltaEl) {
-      const delta = Math.floor(Math.random() * 9) - 4;
-      const sign = delta >= 0 ? '+' : '';
-      deltaEl.textContent = `${delta >= 0 ? '▲' : '▼'} ${sign}${delta} vs last min`;
-      deltaEl.className = `metric-delta ${delta > 0 ? 'up' : delta < 0 ? 'down' : 'neutral'}`;
+      console.error('Error updating bubble rate:', error);
     }
   }
 
   async updateSystemStats() {
     try {
-      const data = await this.fetchJSON(this.statsEndpoint);
+      let data;
+      
+      if (MOCK_DATA) {
+        data = this.mockData.getSystemStats();
+      } else {
+        data = await this.fetchJSON('/api/stats');
+      }
 
       // CPU Temperature
-      const tempEl = document.getElementById('cpu-temp-value');
-      if (tempEl && data?.cpu?.temp_c) {
+      const tempEl = document.getElementById('cpu-temp');
+      if (tempEl && data?.cpu?.temp_c !== undefined) {
         tempEl.textContent = data.cpu.temp_c.toFixed(1);
       }
 
-      // FPS (if available)
-      const fpsEl = document.getElementById('fps-value');
-      if (fpsEl && data?.camera?.fps) {
-        fpsEl.textContent = Math.round(data.camera.fps);
+      // CPU Usage
+      const cpuUsageEl = document.getElementById('cpu-usage');
+      if (cpuUsageEl && data?.cpu?.usage_percent !== undefined) {
+        cpuUsageEl.textContent = data.cpu.usage_percent.toFixed(1);
+      }
+
+      // Memory
+      const memoryEl = document.getElementById('memory-usage');
+      if (memoryEl && data?.memory) {
+        memoryEl.textContent = `${data.memory.used.toFixed(1)} / ${data.memory.total}`;
       }
 
       // Uptime
-      const uptimeEl = document.getElementById('uptime-value');
+      const uptimeEl = document.getElementById('uptime');
       if (uptimeEl && data?.uptime_seconds) {
         uptimeEl.textContent = this.formatUptime(data.uptime_seconds);
       }
 
-      // CPU Usage
-      const cpuUsageEl = document.getElementById('cpu-usage-value');
-      if (cpuUsageEl && data?.cpu?.usage_percent !== undefined) {
-        cpuUsageEl.textContent = data.cpu.usage_percent.toFixed(1);
+      // Services
+      const cameraEl = document.getElementById('camera-service');
+      if (cameraEl && data?.services?.camera) {
+        cameraEl.textContent = this.capitalize(data.services.camera);
       }
+
+      const stepperEl = document.getElementById('stepper-service');
+      if (stepperEl && data?.services?.stepper) {
+        stepperEl.textContent = this.capitalize(data.services.stepper);
+      }
+
     } catch (error) {
-      // Use mock data on error
-      this.useMockSystemStats();
+      console.error('Error updating system stats:', error);
     }
   }
 
-  useMockSystemStats() {
-    const tempEl = document.getElementById('cpu-temp-value');
-    if (tempEl) tempEl.textContent = (45 + Math.random() * 5).toFixed(1);
+  async updateStepperStatus() {
+    try {
+      let data;
+      
+      if (MOCK_DATA) {
+        data = this.mockData.getStepperStatus();
+      } else {
+        data = await this.fetchJSON('/api/stepper/status');
+      }
 
-    const fpsEl = document.getElementById('fps-value');
-    if (fpsEl) fpsEl.textContent = Math.round(28 + Math.random() * 4);
+      const statusEl = document.getElementById('valve-status-text');
+      if (statusEl) {
+        const enabled = data?.enabled ? 'Enabled' : 'Disabled';
+        const moving = data?.moving ? ', Moving' : '';
+        statusEl.textContent = `${enabled}${moving}`;
+      }
 
-    const uptimeEl = document.getElementById('uptime-value');
-    if (uptimeEl) uptimeEl.textContent = '5d 14h';
+      const posEl = document.getElementById('valve-position');
+      const fillEl = document.getElementById('valve-position-fill');
+      if (data?.position_steps !== undefined) {
+        // Convert steps to percentage (assuming 200 steps = 100%)
+        const percent = Math.round((data.position_steps / 200) * 100);
+        if (posEl) posEl.textContent = percent;
+        if (fillEl) fillEl.style.width = `${percent}%`;
+      }
 
-    const cpuUsageEl = document.getElementById('cpu-usage-value');
-    if (cpuUsageEl) cpuUsageEl.textContent = (25 + Math.random() * 30).toFixed(1);
+    } catch (error) {
+      console.error('Error updating stepper status:', error);
+    }
+  }
+
+  updateChart() {
+    if (this.mockData && this.chart) {
+      this.chart.updateData(this.mockData.bubbleRateHistory);
+    }
   }
 
   formatUptime(seconds) {
@@ -251,92 +532,20 @@ class DataManager {
     }
   }
 
-  async updateAIStatus() {
-    try {
-      const data = await this.fetchJSON(this.statusEndpoint);
-
-      const statusEl = document.getElementById('ai-status-badge');
-      const modelEl = document.getElementById('ai-model-name');
-      const timeEl = document.getElementById('ai-last-updated');
-
-      if (statusEl && data?.ai_status) {
-        const status = data.ai_status.toLowerCase();
-        statusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-        statusEl.className = `status-badge ${status === 'running' ? 'success' : status === 'error' ? 'error' : 'warning'}`;
-      }
-
-      if (modelEl && data?.model_name) {
-        modelEl.textContent = data.model_name;
-      }
-
-      if (timeEl && data?.last_updated) {
-        timeEl.textContent = new Date(data.last_updated).toLocaleTimeString();
-      }
-    } catch (error) {
-      // Use mock data
-      const statusEl = document.getElementById('ai-status-badge');
-      if (statusEl) {
-        statusEl.textContent = 'Idle';
-        statusEl.className = 'status-badge warning';
-      }
-
-      const modelEl = document.getElementById('ai-model-name');
-      if (modelEl) modelEl.textContent = 'YOLOv8n';
-
-      const timeEl = document.getElementById('ai-last-updated');
-      if (timeEl) timeEl.textContent = new Date().toLocaleTimeString();
-    }
+  capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
-  async updateStepperStatus() {
-    try {
-      const data = await this.fetchJSON(this.stepperStatusEndpoint);
-
-      const posEl = document.getElementById('stepper-position');
-      const statusEl = document.getElementById('stepper-status-text');
-
-      if (posEl && data?.position_steps !== undefined) {
-        posEl.textContent = data.position_steps;
-      }
-
-      if (statusEl) {
-        const enabled = data?.enabled ? 'Enabled' : 'Disabled';
-        const moving = data?.moving ? ', Moving' : '';
-        statusEl.textContent = `${enabled}${moving}`;
-      }
-    } catch (error) {
-      // Graceful degradation
-      const statusEl = document.getElementById('stepper-status-text');
-      if (statusEl) statusEl.textContent = 'Unknown';
-    }
-  }
-
-  async updateAlerts() {
-    try {
-      // Placeholder - implement when alerts endpoint is available
-      const alertsEl = document.getElementById('alerts-list');
-      if (alertsEl && alertsEl.children.length === 0) {
-        // Show empty state
-        alertsEl.innerHTML = `
-          <div class="empty-state" style="padding: var(--space-6);">
-            <div class="empty-state-icon">✓</div>
-            <div class="empty-state-message">No alerts</div>
-          </div>
-        `;
-      }
-    } catch (error) {
-      console.error('Error updating alerts:', error);
-    }
-  }
-
-  startAutoUpdate(interval = 5000) {
-    // Initial update
+  startAutoUpdate() {
     this.updateAll();
-
-    // Set up periodic updates
     this.updateInterval = setInterval(() => {
       this.updateAll();
-    }, interval);
+    }, UPDATE_INTERVAL);
+
+    // Update chart more frequently
+    setInterval(() => {
+      this.updateChart();
+    }, CHART_UPDATE_INTERVAL);
   }
 
   stopAutoUpdate() {
@@ -350,24 +559,31 @@ class DataManager {
     await Promise.allSettled([
       this.updateBubbleRate(),
       this.updateSystemStats(),
-      this.updateAIStatus(),
       this.updateStepperStatus(),
-      this.updateAlerts(),
     ]);
   }
 }
 
-// ========== STEPPER CONTROLS ==========
-class StepperController {
+// ========== VALVE CONTROLS ==========
+class ValveController {
   constructor() {
     this.baseUrl = '/api/stepper';
     this.bindButtons();
   }
 
   async sendCommand(endpoint, options = {}) {
-    const messageEl = document.getElementById('stepper-message');
+    const messageEl = document.getElementById('valve-message');
     
     try {
+      if (MOCK_DATA) {
+        console.log(`[MOCK] Command: ${endpoint}`);
+        if (messageEl) {
+          messageEl.textContent = `[MOCK] Command sent: ${endpoint}`;
+          messageEl.style.color = 'var(--positive)';
+        }
+        return { success: true };
+      }
+
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         method: 'POST',
         headers: {
@@ -384,14 +600,14 @@ class StepperController {
       
       if (messageEl) {
         messageEl.textContent = 'Command sent successfully';
-        messageEl.style.color = 'var(--success)';
+        messageEl.style.color = 'var(--positive)';
       }
 
       return data;
     } catch (error) {
       if (messageEl) {
         messageEl.textContent = `Error: ${error.message}`;
-        messageEl.style.color = 'var(--error)';
+        messageEl.style.color = 'var(--danger)';
       }
       throw error;
     }
@@ -399,11 +615,13 @@ class StepperController {
 
   bindButtons() {
     const buttons = {
-      'stepper-enable': () => this.sendCommand('/enable'),
-      'stepper-disable': () => this.sendCommand('/disable'),
-      'stepper-open': () => this.sendCommand('/open'),
-      'stepper-close': () => this.sendCommand('/close'),
-      'stepper-abort': () => this.sendCommand('/abort'),
+      'valve-enable': () => this.sendCommand('/enable'),
+      'valve-disable': () => this.sendCommand('/disable'),
+      'valve-open': () => this.sendCommand('/open'),
+      'valve-close': () => this.sendCommand('/close'),
+      'valve-abort': () => this.sendCommand('/abort'),
+      'valve-plus': () => this.sendCommand('/step?steps=10'),
+      'valve-minus': () => this.sendCommand('/step?steps=-10'),
     };
 
     Object.entries(buttons).forEach(([id, handler]) => {
@@ -423,193 +641,59 @@ class StepperController {
         });
       }
     });
-
-    // Stepper slider
-    const slider = document.getElementById('stepper-slider');
-    const sliderValue = document.getElementById('stepper-slider-value');
-    
-    if (slider && sliderValue) {
-      slider.addEventListener('input', (e) => {
-        sliderValue.textContent = e.target.value;
-      });
-
-      slider.addEventListener('change', async (e) => {
-        const steps = e.target.value;
-        try {
-          await this.sendCommand(`/step?steps=${steps}`);
-        } catch (error) {
-          console.error('Slider command error:', error);
-        }
-      });
-    }
   }
 }
 
-// ========== BUTTON INTERACTIONS ==========
-class ButtonInteractions {
-  constructor() {
-    this.init();
-  }
+// ========== KEYBOARD SHORTCUTS ==========
+function setupKeyboardShortcuts(themeManager, recordingControl) {
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+      return;
+    }
 
-  init() {
-    // Add press effect to all buttons
-    document.addEventListener('click', (e) => {
-      const btn = e.target.closest('.btn');
-      if (btn) {
-        this.animatePress(btn);
-      }
-    });
+    if (e.key === 't') {
+      e.preventDefault();
+      themeManager.toggleTheme();
+    }
 
-    // Keyboard support for custom buttons
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        const btn = e.target.closest('.btn');
-        if (btn) {
-          e.preventDefault();
-          btn.click();
-        }
-      }
-    });
-  }
+    if (e.key === 'r' && e.ctrlKey) {
+      e.preventDefault();
+      recordingControl.toggle();
+    }
 
-  animatePress(button) {
-    button.style.transform = 'scale(0.95)';
-    setTimeout(() => {
-      button.style.transform = '';
-    }, 100);
-  }
+    if (e.key === '?') {
+      e.preventDefault();
+      showHelp();
+    }
+  });
 }
 
-// ========== CARD ANIMATIONS ==========
-class CardAnimations {
-  constructor() {
-    this.observeCards();
-  }
+function showHelp() {
+  const shortcuts = [
+    { key: 't', description: 'Toggle theme' },
+    { key: 'f', description: 'Toggle fullscreen camera' },
+    { key: 'Ctrl+r', description: 'Toggle recording' },
+    { key: '?', description: 'Show this help' },
+  ];
 
-  observeCards() {
-    // Stagger card entrance animations
-    const cards = document.querySelectorAll('.card');
-    
-    cards.forEach((card, index) => {
-      card.style.animationDelay = `${index * 30}ms`;
-    });
+  const message = shortcuts
+    .map((s) => `${s.key} - ${s.description}`)
+    .join('\n');
 
-    // Use Intersection Observer for scroll-triggered animations
-    if ('IntersectionObserver' in window) {
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              entry.target.style.opacity = '1';
-              entry.target.style.transform = 'translateY(0)';
-            }
-          });
-        },
-        {
-          threshold: 0.1,
-        }
-      );
-
-      cards.forEach((card) => observer.observe(card));
-    }
-  }
-}
-
-// ========== LOGS VIEWER ==========
-class LogsViewer {
-  constructor(elementId) {
-    this.container = document.getElementById(elementId);
-    this.maxLogs = 50;
-    this.logs = [];
-    this.init();
-  }
-
-  init() {
-    if (!this.container) return;
-
-    // Add some mock logs for demonstration
-    this.addMockLogs();
-
-    // Auto-scroll to bottom
-    this.scrollToBottom();
-  }
-
-  addLog(time, message, level = 'info') {
-    const entry = { time, message, level };
-    this.logs.unshift(entry);
-
-    if (this.logs.length > this.maxLogs) {
-      this.logs.pop();
-    }
-
-    this.render();
-  }
-
-  addMockLogs() {
-    const now = new Date();
-    const mockLogs = [
-      { time: new Date(now - 5000), message: 'Camera stream started', level: 'info' },
-      { time: new Date(now - 15000), message: 'Stepper motor enabled', level: 'info' },
-      { time: new Date(now - 45000), message: 'AI model loaded: YOLOv8n', level: 'success' },
-      { time: new Date(now - 120000), message: 'System startup complete', level: 'success' },
-      { time: new Date(now - 180000), message: 'Connecting to API...', level: 'info' },
-    ];
-
-    this.logs = mockLogs;
-    this.render();
-  }
-
-  render() {
-    if (!this.container) return;
-
-    this.container.innerHTML = this.logs
-      .map(
-        (log) => `
-        <div class="log-entry">
-          <span class="log-time">${this.formatTime(log.time)}</span>
-          <span class="log-message">${this.escapeHtml(log.message)}</span>
-        </div>
-      `
-      )
-      .join('');
-  }
-
-  formatTime(date) {
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    });
-  }
-
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  scrollToBottom() {
-    if (this.container) {
-      this.container.scrollTop = this.container.scrollHeight;
-    }
-  }
+  alert(`Keyboard Shortcuts:\n\n${message}`);
 }
 
 // ========== INITIALIZE APPLICATION ==========
 class Dashboard {
   constructor() {
     this.themeManager = null;
+    this.recordingControl = null;
     this.dataManager = null;
     this.cameraManager = null;
-    this.stepperController = null;
-    this.buttonInteractions = null;
-    this.cardAnimations = null;
-    this.logsViewer = null;
+    this.valveController = null;
   }
 
   init() {
-    // Wait for DOM to be ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this.setup());
     } else {
@@ -618,12 +702,12 @@ class Dashboard {
   }
 
   setup() {
-    console.log('🚀 Initializing UU Plastination Dashboard...');
+    console.log('🚀 Initializing Plastination Control Dashboard...');
+    console.log(`📊 Mock Data Mode: ${MOCK_DATA ? 'ENABLED' : 'DISABLED'}`);
 
-    // Initialize theme management
+    // Initialize theme
     this.themeManager = new ThemeManager();
 
-    // Bind theme toggle button
     const themeToggle = document.getElementById('theme-toggle');
     if (themeToggle) {
       themeToggle.addEventListener('click', () => {
@@ -631,76 +715,26 @@ class Dashboard {
       });
     }
 
-    // Initialize camera/video
+    // Initialize recording control
+    this.recordingControl = new RecordingControl();
+
+    // Initialize camera
     this.cameraManager = new CameraManager('camera-widget');
 
-    // Initialize data management and start updates
+    // Initialize data management
     this.dataManager = new DataManager();
-    this.dataManager.startAutoUpdate(5000);
+    this.dataManager.startAutoUpdate();
 
-    // Initialize stepper controls
-    this.stepperController = new StepperController();
+    // Initialize valve controls
+    this.valveController = new ValveController();
 
-    // Initialize button interactions
-    this.buttonInteractions = new ButtonInteractions();
-
-    // Initialize card animations
-    this.cardAnimations = new CardAnimations();
-
-    // Initialize logs viewer
-    this.logsViewer = new LogsViewer('logs-container');
-
-    // Keyboard shortcuts
-    this.setupKeyboardShortcuts();
+    // Setup keyboard shortcuts
+    setupKeyboardShortcuts(this.themeManager, this.recordingControl);
 
     console.log('✅ Dashboard initialized successfully');
   }
 
-  setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-      // Ignore if user is typing in an input
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-        return;
-      }
-
-      // 't' - toggle theme
-      if (e.key === 't') {
-        e.preventDefault();
-        this.themeManager.toggleTheme();
-      }
-
-      // 'f' - fullscreen camera (handled in CameraManager)
-      // 'r' - refresh data
-      if (e.key === 'r') {
-        e.preventDefault();
-        this.dataManager.updateAll();
-      }
-
-      // '?' - show help
-      if (e.key === '?') {
-        e.preventDefault();
-        this.showHelp();
-      }
-    });
-  }
-
-  showHelp() {
-    const shortcuts = [
-      { key: 't', description: 'Toggle theme' },
-      { key: 'f', description: 'Toggle fullscreen camera' },
-      { key: 'r', description: 'Refresh data' },
-      { key: '?', description: 'Show this help' },
-    ];
-
-    const message = shortcuts
-      .map((s) => `${s.key} - ${s.description}`)
-      .join('\n');
-
-    alert(`Keyboard Shortcuts:\n\n${message}`);
-  }
-
   destroy() {
-    // Clean up
     if (this.dataManager) {
       this.dataManager.stopAutoUpdate();
     }
@@ -718,3 +752,4 @@ window.addEventListener('beforeunload', () => {
 
 // Export for debugging
 window.dashboard = dashboard;
+window.MOCK_DATA = MOCK_DATA;

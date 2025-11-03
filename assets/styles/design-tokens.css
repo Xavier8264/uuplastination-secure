@@ -1,0 +1,204 @@
+/**
+ * Design Tokens - Apple Dark Mode Inspired
+ * Flat, high-contrast design system for lab monitors
+ */
+
+:root {
+  /* ========== SPACING ========== */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* Grid Gutters */
+  --grid-gap: 16px;
+  --grid-gap-lg: 20px;
+
+  /* ========== BORDER RADIUS ========== */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* ========== SHADOWS (Subtle Elevation) ========== */
+  --shadow-subtle: 0 1px 0 0 rgba(255, 255, 255, 0.04), 0 8px 30px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.7);
+
+  /* ========== TYPOGRAPHY ========== */
+  --font-sans: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Font Sizes - Optical Sizing */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 34px;
+  --text-4xl: 40px;
+  --text-5xl: 48px;
+
+  /* Line Heights */
+  --leading-xs: 16px;
+  --leading-sm: 20px;
+  --leading-base: 24px;
+  --leading-lg: 24px;
+  --leading-xl: 28px;
+  --leading-2xl: 34px;
+  --leading-3xl: 40px;
+
+  /* Font Weights */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* ========== TRANSITIONS ========== */
+  --transition-fast: 100ms cubic-bezier(0.2, 0.6, 0.2, 1);
+  --transition-base: 150ms cubic-bezier(0.2, 0.6, 0.2, 1);
+  --transition-slow: 250ms cubic-bezier(0.2, 0.6, 0.2, 1);
+
+  /* ========== Z-INDEX ========== */
+  --z-base: 0;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 500;
+
+  /* ========== DARK MODE COLORS (Primary) ========== */
+  --background: #0B0B0F;
+  --surface: #111216;
+  --surface-2: #15171D;
+  --surface-3: #1A1C23;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --divider: rgba(255, 255, 255, 0.05);
+  
+  /* Text Colors */
+  --text: rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(255, 255, 255, 0.70);
+  --text-tertiary: rgba(255, 255, 255, 0.50);
+  --text-disabled: rgba(255, 255, 255, 0.30);
+  
+  /* Accent Colors - iOS Inspired */
+  --accent: #0A84FF;
+  --accent-hover: #409CFF;
+  --accent-pressed: #006DE0;
+  --accent-subtle: rgba(10, 132, 255, 0.15);
+  
+  --accent-2: #64D2FF;
+  --accent-2-subtle: rgba(100, 210, 255, 0.15);
+  
+  /* Semantic Colors */
+  --positive: #30D158;
+  --positive-bg: rgba(48, 209, 88, 0.15);
+  --positive-border: rgba(48, 209, 88, 0.3);
+  
+  --warning: #FFD60A;
+  --warning-bg: rgba(255, 214, 10, 0.15);
+  --warning-border: rgba(255, 214, 10, 0.3);
+  
+  --danger: #FF453A;
+  --danger-bg: rgba(255, 69, 58, 0.15);
+  --danger-border: rgba(255, 69, 58, 0.3);
+  
+  --info: #0A84FF;
+  --info-bg: rgba(10, 132, 255, 0.15);
+  --info-border: rgba(10, 132, 255, 0.3);
+
+  /* Recording/Live Indicator */
+  --live-red: #FF453A;
+  --live-red-glow: rgba(255, 69, 58, 0.4);
+  
+  /* Focus States */
+  --focus-ring: 0 0 0 3px rgba(10, 132, 255, 0.4);
+  --focus-ring-error: 0 0 0 3px rgba(255, 69, 58, 0.4);
+}
+
+/* ========== LIGHT MODE (Optional Override) ========== */
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #F5F5F7;
+    --surface: #FFFFFF;
+    --surface-2: #FAFAFA;
+    --surface-3: #F0F0F2;
+    --border: rgba(0, 0, 0, 0.10);
+    --border-hover: rgba(0, 0, 0, 0.15);
+    --divider: rgba(0, 0, 0, 0.08);
+    
+    --text: rgba(0, 0, 0, 0.95);
+    --text-secondary: rgba(0, 0, 0, 0.70);
+    --text-tertiary: rgba(0, 0, 0, 0.50);
+    --text-disabled: rgba(0, 0, 0, 0.30);
+    
+    --accent: #0A84FF;
+    --accent-hover: #006DE0;
+    --accent-pressed: #005CC5;
+    
+    --shadow-subtle: 0 1px 0 0 rgba(0, 0, 0, 0.04), 0 8px 30px rgba(0, 0, 0, 0.15);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* ========== MANUAL THEME OVERRIDE ========== */
+[data-theme="dark"] {
+  --background: #0B0B0F;
+  --surface: #111216;
+  --surface-2: #15171D;
+  --surface-3: #1A1C23;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --divider: rgba(255, 255, 255, 0.05);
+  
+  --text: rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(255, 255, 255, 0.70);
+  --text-tertiary: rgba(255, 255, 255, 0.50);
+  
+  --accent: #0A84FF;
+  --accent-hover: #409CFF;
+  --accent-pressed: #006DE0;
+  
+  --shadow-subtle: 0 1px 0 0 rgba(255, 255, 255, 0.04), 0 8px 30px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="light"] {
+  --background: #F5F5F7;
+  --surface: #FFFFFF;
+  --surface-2: #FAFAFA;
+  --surface-3: #F0F0F2;
+  --border: rgba(0, 0, 0, 0.10);
+  --border-hover: rgba(0, 0, 0, 0.15);
+  --divider: rgba(0, 0, 0, 0.08);
+  
+  --text: rgba(0, 0, 0, 0.95);
+  --text-secondary: rgba(0, 0, 0, 0.70);
+  --text-tertiary: rgba(0, 0, 0, 0.50);
+  
+  --accent: #0A84FF;
+  --accent-hover: #006DE0;
+  --accent-pressed: #005CC5;
+  
+  --shadow-subtle: 0 1px 0 0 rgba(0, 0, 0, 0.04), 0 8px 30px rgba(0, 0, 0, 0.15);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
