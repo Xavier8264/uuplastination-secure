@@ -3,438 +3,309 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>UU Plastination — Secure Portal</title>
-  <meta name="description" content="Private, authenticated portal for UU Plastination team." />
-  <style>
-    :root{
-      --bg:#0b0f14;--card:#121923;--muted:#A9B1BC;--text:#E9EEF4;--accent:#5CC8FF;--ok:#47D18C;--warn:#FFB54C;--danger:#FF6B6B;--border:#223041;
-      --secure:#FF3B6E; /* distinct from public blue */
-      --secure-glow: rgba(255,59,110,.25);
-    }
-    @media (prefers-color-scheme: light){
-      :root{
-        --bg:#f7fbff; --card:#ffffff; --muted:#4A5A6A; --text:#0e1726; --accent:#0B84FF; --ok:#0EAD69; --warn:#C97700; --danger:#D93D3D; --border:#DFE7F1;
-        --secure:#D72D57; --secure-glow: rgba(215,45,87,.2);
-      }
-    }
-    *{box-sizing:border-box}
-    html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-    a{color:var(--accent);text-decoration:none}
-    a:hover{text-decoration:underline}
-    .wrap{max-width:1100px;margin:0 auto;padding:1rem}
-    header{
-      position:sticky;top:0;z-index:10;
-      background:linear-gradient(180deg,rgba(0,0,0,.28),transparent),var(--bg);
-      backdrop-filter:saturate(120%) blur(6px);
-      border-bottom:1px solid var(--border);
-    }
-    .bar{display:flex;align-items:center;gap:.75rem;justify-content:space-between}
-    .brand{display:flex;gap:.75rem;align-items:center}
-    .logo{width:40px;height:40px;border-radius:10px;
-      background:conic-gradient(from 200deg at 50% 50%, var(--secure), #47D18C, #FFB54C, var(--secure));
-      box-shadow:0 2px 16px var(--secure-glow), 0 2px 10px rgba(0,0,0,.15)
-    }
-    .lock-badge{display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .6rem;border-radius:999px;border:1px solid var(--border);font-weight:700;
-      background: rgba(255,59,110,.08); color:var(--secure)}
-    nav a{margin-left:1rem;font-weight:600}
-    .hero{padding:2.2rem 0;border-bottom:1px solid var(--border);position:relative;overflow:hidden}
-    h1{font-size:clamp(1.6rem,3.2vw,2.2rem);margin:.2rem 0 .6rem}
-    .muted{color:var(--muted)}
-    .grid{display:grid;gap:1rem;margin:1.25rem 0 2rem;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1rem}
-    .card h3{margin:.2rem 0 .6rem;font-size:1.05rem}
-    .pill{display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .6rem;border-radius:999px;border:1px solid var(--border);font-size:.82rem}
-    .ok{color:var(--ok)} .warn{color:var(--warn)} .danger{color:var(--danger)}
-    .row{display:flex;gap:.75rem;flex-wrap:wrap}
-    ul.clean{list-style:none;padding:0;margin:.2rem 0}
-    ul.clean li{padding:.35rem 0;border-bottom:1px dashed var(--border)}
-    ul.clean li:last-child{border-bottom:none}
-    footer{border-top:1px solid var(--border);padding:1.25rem 0;color:var(--muted)}
-    .btn{display:inline-flex;align-items:center;gap:.5rem;font-weight:600;border:1px solid var(--border);padding:.6rem .9rem;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.02));text-decoration:none}
-    .btn:hover{transform:translateY(-1px)}
-    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(127,127,127,.12);border:1px solid var(--border);border-bottom-width:2px;border-radius:8px;padding:.2rem .4rem}
-    .two{display:grid;gap:1rem;grid-template-columns:1.1fr .9fr}
-    @media (max-width:900px){.two{grid-template-columns:1fr}}
-    .note{font-size:.9rem;line-height:1.4}
-    .table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
-    .table th,.table td{padding:.6rem .7rem;border-bottom:1px solid var(--border);text-align:left}
-    .table tr:last-child td{border-bottom:none}
-    .tag{display:inline-block;padding:.16rem .5rem;border:1px solid var(--border);border-radius:999px;margin-right:.35rem;font-size:.78rem}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-    .banner{
-      display:flex;align-items:center;gap:.6rem;border:1px solid var(--secure);background:rgba(255,59,110,.10);
-      padding:.55rem .8rem;border-radius:10px; box-shadow:0 0 0 4px var(--secure-glow) inset
-    }
-    .banner strong{color:var(--secure)}
-    /* Secure watermark */
-    .watermark{
-      position:absolute; inset:0; pointer-events:none;
-      background:
-        repeating-linear-gradient(45deg, transparent 0 60px, rgba(255,59,110,.05) 60px 120px),
-        radial-gradient(600px 200px at 80% -20%, rgba(255,59,110,.08), transparent 60%),
-        radial-gradient(800px 260px at -10% 120%, rgba(92,200,255,.06), transparent 60%);
-    }
-    .watermark::after{
-      content:"SECURE • PRIVATE • AUTHENTICATED"; position:absolute; right:-2rem; top:35%;
-      transform:rotate(-90deg); letter-spacing:.2rem; font-weight:800; font-size:clamp(1.2rem,4vw,2rem);
-      color:rgba(255,59,110,.16);
-    }
-    .list-tight li{padding:.25rem 0;border-bottom:1px dashed var(--border)}
-    .list-tight li:last-child{border-bottom:none}
-    .accent-sec{color:var(--secure)}
-  </style>
+  <title>UU Plastination — Secure Dashboard</title>
+  <meta name="description" content="Private, authenticated dashboard for UU Plastination team." />
+  
+  <!-- Design System -->
+  <link rel="stylesheet" href="/assets/styles/design-tokens.css" />
+  <link rel="stylesheet" href="/assets/styles/dashboard.css" />
 </head>
 <body>
-<header>
-  <div class="wrap bar">
-    <div class="brand">
-      <div class="logo" aria-hidden="true"></div>
-      <div>
-        <strong>UU Plastination</strong><br/>
-        <span class="muted" style="font-size:.9rem">Secure Portal</span>
+  <!-- Dashboard Header -->
+  <header class="dashboard-header" role="banner">
+    <div class="header-branding">
+      <div class="header-logo" aria-hidden="true"></div>
+      <div class="header-title">
+        <h1>UU Plastination</h1>
+        <span class="header-subtitle">Secure Dashboard</span>
       </div>
     </div>
-    <nav>
-      <a href="/">← Public Home</a>
-      <a href="#tools">Tools</a>
-      <a href="#files">Files</a>
-      <a href="#ops">Ops</a>
-    </nav>
-  </div>
-</header>
-
-<main class="wrap">
-  <section class="hero" aria-labelledby="secure-heading">
-    <div class="watermark" aria-hidden="true"></div>
-
-    <div class="banner" role="status" aria-live="polite">
-      <span>🔒</span>
-      <strong>Secure Area</strong>
-      <span class="muted">Authenticated users only. Internal documents & data allowed per policy.</span>
-      <span class="pill" style="margin-left:auto">Build: <span class="mono">secure-v1.0</span></span>
+    
+    <div class="header-controls">
+      <span class="secure-badge">
+        <span aria-hidden="true">🔒</span>
+        Secure
+      </span>
+      <button 
+        type="button" 
+        id="theme-toggle" 
+        class="theme-toggle" 
+        aria-label="Toggle theme"
+        title="Toggle light/dark mode (t)">
+        🌙
+      </button>
     </div>
+  </header>
 
-    <div class="two" style="margin-top:1rem">
-      <div>
-        <h1 id="secure-heading">Welcome to the <span class="accent-sec">UU Plastination Secure Portal</span></h1>
-        <p class="muted">
-          You are in a private, authenticated space. Content here is not intended for public
-          distribution. Follow data-handling guidelines and keep files within the secure area.
-        </p>
-
-        <div class="row" style="margin-top:.8rem">
-          <span class="pill ok">Access: Granted</span>
-          <span class="pill">Role: <span class="mono">Team Member</span></span>
-          <span class="pill">2FA: <span class="mono">Required</span></span>
+  <!-- Main Dashboard -->
+  <main class="dashboard-container" role="main">
+    
+    <!-- Dashboard Grid -->
+    <div class="dashboard-grid">
+      
+      <!-- Live Camera Widget (2×3 columns) -->
+      <section class="card span-6 row-span-2" role="region" aria-labelledby="camera-title">
+        <div class="card-header">
+          <h2 class="card-title" id="camera-title">
+            <span aria-hidden="true">📹</span>
+            Live Camera
+          </h2>
         </div>
-
-        <div class="card" style="margin-top:1rem">
-          <h3>Quick Actions</h3>
-          <div class="row">
-            <a class="btn" href="#files">📁 Secure Files</a>
-            <a class="btn" href="#tools">🧰 Lab Tools</a>
-            <a class="btn" href="#ops">🖥️ Ops & Deploy</a>
-            <a class="btn" href="/">↩️ Back to Public</a>
+        <div class="card-body">
+          <div class="camera-widget" id="camera-widget">
+            <img 
+              src="/stream.mjpg" 
+              alt="Live camera stream" 
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+            />
+            <div class="camera-placeholder" style="display: none;">
+              <span>📷 Camera stream unavailable</span>
+            </div>
+            <div class="camera-overlay">
+              <button type="button" id="camera-fullscreen-btn" class="btn btn-small" style="background: rgba(0,0,0,0.8); color: white; border-color: rgba(255,255,255,0.2);">
+                <span aria-hidden="true">⤢</span> Fullscreen
+              </button>
+            </div>
           </div>
-          <p class="note muted" style="margin-top:.8rem">
-            Tip: Press <span class="kbd">/</span> to focus search, <span class="kbd">?</span> for help.
-          </p>
         </div>
-      </div>
-
-      <aside>
-        <div class="card">
-          <h3>Security Notice</h3>
-          <ul class="clean">
-            <li>Only share links within <span class="mono">/secure/</span>.</li>
-            <li>Do not move files to the public repo without review.</li>
-            <li>No personal data in commit messages.</li>
-            <li>Rotate secrets on role changes or exposure.</li>
-          </ul>
+        <div class="card-footer">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="text-muted" style="font-size: var(--text-sm);">
+              <span id="fps-value">30</span> FPS · Press <kbd style="padding: 2px 6px; background: var(--bg-secondary); border-radius: 4px; font-family: var(--font-mono); font-size: 12px;">f</kbd> for fullscreen
+            </span>
+          </div>
         </div>
-        <div class="card" style="margin-top:1rem">
-          <h3>Portal Status</h3>
-          <ul class="clean">
-            <li><span class="ok">●</span> Uptime: <span class="mono">OK</span></li>
-            <li><span class="ok">●</span> Auth (Basic): <span class="mono">Enabled</span></li>
-            <li><span class="ok">●</span> TLS (Cloudflare): <span class="mono">Active</span></li>
-          </ul>
+      </section>
+
+      <!-- Bubble Rate Widget (1×1) -->
+      <section class="card span-3" role="region" aria-labelledby="bpm-title">
+        <div class="card-header">
+          <h2 class="card-title" id="bpm-title">
+            <span aria-hidden="true">🫧</span>
+            Bubble Rate
+          </h2>
         </div>
-      </aside>
-    </div>
-  </section>
-
-  <section id="files" class="wrap" style="padding:1.25rem 0">
-    <div class="grid">
-      <div class="card">
-        <h3>Secure Files</h3>
-        <p class="muted">Internal docs, SOPs, experiment logs, and reports.</p>
-        <ul class="list-tight clean">
-          <li>📄 <a href="#">SOP — Silicone Impregnation v3</a> <span class="tag">PDF</span></li>
-          <li>📄 <a href="#">Spec — Vacuum Control Box</a> <span class="tag">DOCX</span></li>
-          <li>📄 <a href="#">Log — Bubble Counter Trials</a> <span class="tag">XLSX</span></li>
-          <li>📄 <a href="#">Poster — Symposium Draft</a> <span class="tag">PPTX</span></li>
-        </ul>
-      </div>
-
-      <div class="card" id="tools">
-        <h3>Lab Tools</h3>
-        <p class="muted">Internal calculators and dashboards.</p>
-        <ul class="list-tight clean">
-          <li>🧮 <a href="#">Resin Mix Calculator</a></li>
-          <li>🌡️ <a href="#">Cure Schedule Planner</a></li>
-          <li>🌀 <a href="#">Wind Tunnel Test Notebook</a></li>
-          <li>🔧 <a href="#">Equipment Checkout</a></li>
-        </ul>
-      </div>
-
-      <div class="card" id="ops">
-        <h3>Operations & Deploy</h3>
-        <p class="muted">Internal notes for maintaining the site and services.</p>
-        <table class="table mono" aria-label="Operations table">
-          <tr><th>Component</th><th>Location</th><th>Notes</th></tr>
-          <tr><td>Public Repo</td><td>GitHub: <span class="muted">/public-site</span></td><td>Served at <span class="muted">/</span></td></tr>
-          <tr><td>Secure Repo</td><td>GitHub: <span class="muted">/secure-site</span></td><td>Served at <span class="muted">/secure/</span></td></tr>
-          <tr><td>Deploy</td><td>Raspberry Pi</td><td>Systemd rsync to Nginx docroots</td></tr>
-        </table>
-        <p class="note muted" style="margin-top:.6rem">
-          Reminder: <span class="kbd">git commit</span> → <span class="kbd">git push</span> triggers the Pi deploy service for each repo.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Stepper Motor Control -->
-  <section id="actuators" class="wrap" style="padding:0 0 1.5rem">
-    <div class="card">
-      <h3>🦾 Stepper Motor Control</h3>
-      <p class="muted">Manual controls for the valve stepper. Actions are proxied to the local API and rate-limited by Nginx.</p>
-      <div class="row" style="margin:.5rem 0;gap:.6rem">
-        <button class="btn" id="btn-enable">Enable</button>
-        <button class="btn" id="btn-disable">Disable</button>
-        <button class="btn" id="btn-open">Open</button>
-        <button class="btn" id="btn-close">Close</button>
-        <button class="btn" id="btn-step-minus">Step -10</button>
-        <button class="btn" id="btn-step-plus">Step +10</button>
-        <button class="btn" id="btn-abort" style="border-color:var(--danger);color:var(--danger)">Abort</button>
-      </div>
-      <div class="row mono" style="gap:1rem">
-        <span>Status: <span id="stepper-state">--</span></span>
-        <span>Enabled: <span id="stepper-enabled">--</span></span>
-        <span>Moving: <span id="stepper-moving">--</span></span>
-        <span>Pos: <span id="stepper-pos">0</span></span>
-        <span>Err: <span id="stepper-err">-</span></span>
-      </div>
-      <div id="stepper-msg" class="muted" style="margin-top:.5rem"></div>
-    </div>
-  </section>
-
-  <section class="wrap" style="padding:0 0 1.5rem">
-    <div class="card">
-      <h3>Recent Activity</h3>
-      <ul class="clean mono">
-        <li>[secure-v1.0] Initial secure portal scaffold</li>
-        <li>[ops] Enabled HTTP auth on <span class="muted">/secure/</span></li>
-        <li>[docs] Added SOP v3</li>
-      </ul>
-    </div>
-  </section>
-
-  <!-- Raspberry Pi System Stats (compact footer-friendly) -->
-  <section id="pi-stats" class="wrap" style="padding:0 0 1.5rem">
-    <div class="card">
-      <h3>🥧 Raspberry Pi System Stats</h3>
-      <p class="muted" style="margin-bottom:.6rem">Live telemetry; updates every 5s</p>
-
-      <div class="row mono" style="gap:1.2rem;flex-wrap:wrap">
-        <span>CPU: <span id="cpu-usage">--%</span>, <span id="cpu-temp">--°C</span></span>
-        <span>Mem: <span id="mem-brief">--</span></span>
-        <span>Uptime: <span id="uptime">--</span></span>
-        <span>Net: <span id="net-brief">--</span></span>
-        <span>OS: <span id="os-brief">--</span></span>
-      </div>
-
-      <div class="row" style="margin-top:.6rem;gap:.5rem">
-        <span class="pill" id="svc-camera">Camera: …</span>
-        <span class="pill" id="svc-stepper">Stepper: …</span>
-        <span class="pill" id="svc-nginx">nginx: …</span>
-        <span class="pill" id="svc-tailscaled">tailscaled: …</span>
-        <span class="pill" id="svc-webhook">webhook-deploy: …</span>
-      </div>
-
-      <details style="margin-top:.6rem">
-        <summary class="muted">More</summary>
-        <div class="mono" style="font-size:.9rem;margin-top:.4rem">
-          IPv4: <span id="ipv4-list">[]</span><br/>
-          Ports: RTSP 8554=<span id="port-rtsp">?</span>, API 8000=<span id="port-api">?</span><br/>
-          Updated: <span id="last-update">--</span>
+        <div class="card-body">
+          <div class="metric">
+            <div class="metric-value">
+              <span id="bubble-rate-value">72</span>
+              <span class="unit">BPM</span>
+            </div>
+            <div class="metric-delta up" id="bubble-rate-delta" aria-live="polite">
+              ▲ +4 vs last min
+            </div>
+          </div>
         </div>
-      </details>
-      <div id="stats-error" class="muted" style="display:none;margin-top:.6rem">Failed to load stats</div>
+      </section>
+
+      <!-- AI Status Widget (1×1) -->
+      <section class="card span-3" role="region" aria-labelledby="ai-title">
+        <div class="card-header">
+          <h2 class="card-title" id="ai-title">
+            <span aria-hidden="true">🤖</span>
+            AI Status
+          </h2>
+        </div>
+        <div class="card-body" style="gap: var(--space-3);">
+          <div>
+            <span class="status-badge warning" id="ai-status-badge">
+              <span class="status-dot"></span>
+              Idle
+            </span>
+          </div>
+          <div style="font-size: var(--text-sm);">
+            <div style="color: var(--text-secondary); margin-bottom: var(--space-1);">Model</div>
+            <div style="font-weight: var(--font-semibold); font-family: var(--font-mono);" id="ai-model-name">YOLOv8n</div>
+          </div>
+          <div style="font-size: var(--text-sm);">
+            <div style="color: var(--text-secondary); margin-bottom: var(--space-1);">Last Updated</div>
+            <div style="font-family: var(--font-mono); font-size: var(--text-sm);" id="ai-last-updated">--:--:--</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Valve Control Widget (2×1) -->
+      <section class="card span-6" role="region" aria-labelledby="valve-title">
+        <div class="card-header">
+          <h2 class="card-title" id="valve-title">
+            <span aria-hidden="true">🦾</span>
+            Valve Control
+          </h2>
+          <span class="text-muted text-mono" style="font-size: var(--text-sm);">
+            Position: <span id="stepper-position">0</span> steps
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="slider-control">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2);">
+              <span class="text-muted" style="font-size: var(--text-sm);" id="stepper-status-text">Ready</span>
+              <span class="slider-value" id="stepper-slider-value">50</span>
+            </div>
+            <div class="slider-track">
+              <div class="slider-fill" style="width: 50%;"></div>
+              <input 
+                type="range" 
+                id="stepper-slider"
+                class="slider-input" 
+                min="0" 
+                max="100" 
+                value="50"
+                aria-label="Valve position"
+              />
+            </div>
+          </div>
+          <div class="btn-group" style="margin-top: var(--space-4);">
+            <button type="button" id="stepper-enable" class="btn btn-primary">
+              <span aria-hidden="true">▶️</span> Enable
+            </button>
+            <button type="button" id="stepper-disable" class="btn">
+              <span aria-hidden="true">⏸️</span> Disable
+            </button>
+            <button type="button" id="stepper-open" class="btn">
+              <span aria-hidden="true">⬆️</span> Open
+            </button>
+            <button type="button" id="stepper-close" class="btn">
+              <span aria-hidden="true">⬇️</span> Close
+            </button>
+            <button type="button" id="stepper-abort" class="btn" style="border-color: var(--error); color: var(--error);">
+              <span aria-hidden="true">⛔</span> Abort
+            </button>
+          </div>
+          <div id="stepper-message" class="text-muted" style="margin-top: var(--space-3); font-size: var(--text-sm); min-height: 20px;"></div>
+        </div>
+      </section>
+
+      <!-- System Alerts Widget (1×1) -->
+      <section class="card span-3" role="region" aria-labelledby="alerts-title">
+        <div class="card-header">
+          <h2 class="card-title" id="alerts-title">
+            <span aria-hidden="true">⚠️</span>
+            System Alerts
+          </h2>
+        </div>
+        <div class="card-body">
+          <div class="alert-list" id="alerts-list">
+            <div class="empty-state" style="padding: var(--space-6);">
+              <div class="empty-state-icon">✓</div>
+              <div class="empty-state-message">No alerts</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Actions Widget (1×1) -->
+      <section class="card span-3" role="region" aria-labelledby="actions-title">
+        <div class="card-header">
+          <h2 class="card-title" id="actions-title">
+            <span aria-hidden="true">⚡</span>
+            Quick Actions
+          </h2>
+        </div>
+        <div class="card-body">
+          <div class="btn-group" style="flex-direction: column;">
+            <button type="button" class="btn btn-large" onclick="alert('Start stream feature coming soon')">
+              <span aria-hidden="true">▶️</span> Start Stream
+            </button>
+            <button type="button" class="btn btn-large" onclick="alert('Restart AI feature coming soon')">
+              <span aria-hidden="true">🔄</span> Restart AI
+            </button>
+            <button type="button" class="btn btn-large" onclick="alert('Snapshot feature coming soon')">
+              <span aria-hidden="true">📸</span> Snapshot
+            </button>
+            <a href="#logs" class="btn btn-large">
+              <span aria-hidden="true">📋</span> View Logs
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Logs Widget (3×2) -->
+      <section class="card span-6 row-span-2" role="region" aria-labelledby="logs-title" id="logs">
+        <div class="card-header">
+          <h2 class="card-title" id="logs-title">
+            <span aria-hidden="true">📋</span>
+            System Logs
+          </h2>
+          <a href="#" class="btn btn-small" onclick="alert('View all logs feature coming soon'); return false;">View All</a>
+        </div>
+        <div class="card-body">
+          <div class="log-list" id="logs-container">
+            <!-- Logs will be populated by JavaScript -->
+          </div>
+        </div>
+      </section>
+
+      <!-- CPU Temperature Tile (1×1) -->
+      <section class="card span-2" role="region" aria-labelledby="cpu-temp-title">
+        <div class="stat-tile">
+          <div class="stat-icon" aria-hidden="true">🌡️</div>
+          <div class="stat-label" id="cpu-temp-title">CPU Temp</div>
+          <div class="stat-value">
+            <span id="cpu-temp-value">45.2</span>°C
+          </div>
+        </div>
+      </section>
+
+      <!-- FPS Tile (1×1) -->
+      <section class="card span-2" role="region" aria-labelledby="fps-title">
+        <div class="stat-tile">
+          <div class="stat-icon" aria-hidden="true">🎬</div>
+          <div class="stat-label" id="fps-title">Frame Rate</div>
+          <div class="stat-value">
+            <span id="fps-value-alt">30</span> FPS
+          </div>
+        </div>
+      </section>
+
+      <!-- Uptime Tile (1×1) -->
+      <section class="card span-2" role="region" aria-labelledby="uptime-title">
+        <div class="stat-tile">
+          <div class="stat-icon" aria-hidden="true">⏱️</div>
+          <div class="stat-label" id="uptime-title">Uptime</div>
+          <div class="stat-value" style="font-size: var(--text-xl);" id="uptime-value">
+            5d 14h
+          </div>
+        </div>
+      </section>
+
+      <!-- CPU Usage Tile (1×1) -->
+      <section class="card span-2" role="region" aria-labelledby="cpu-usage-title">
+        <div class="stat-tile">
+          <div class="stat-icon" aria-hidden="true">💻</div>
+          <div class="stat-label" id="cpu-usage-title">CPU Usage</div>
+          <div class="stat-value">
+            <span id="cpu-usage-value">45.3</span>%
+          </div>
+        </div>
+      </section>
+
+      <!-- Memory Usage Tile (1×1) -->
+      <section class="card span-2" role="region" aria-labelledby="mem-title">
+        <div class="stat-tile">
+          <div class="stat-icon" aria-hidden="true">🧠</div>
+          <div class="stat-label" id="mem-title">Memory</div>
+          <div class="stat-value" style="font-size: var(--text-xl);">
+            2.1 / 4 GB
+          </div>
+        </div>
+      </section>
+
+      <!-- Network Status Tile (1×1) -->
+      <section class="card span-2" role="region" aria-labelledby="net-title">
+        <div class="stat-tile">
+          <div class="stat-icon" aria-hidden="true">🌐</div>
+          <div class="stat-label" id="net-title">Network</div>
+          <div class="status-badge success" style="margin-top: var(--space-2);">
+            <span class="status-dot"></span>
+            Online
+          </div>
+        </div>
+      </section>
+
     </div>
-  </section>
-</main>
+  </main>
 
-<footer class="wrap">
-  <div class="row" style="justify-content:space-between;align-items:center">
-    <div>
-      <span class="lock-badge">🔒 SECURE PORTAL</span>
-      <span class="muted" style="margin-left:.5rem">Confidential — Internal Use Only</span>
-    </div>
-    <div class="muted">
-      <a href="/">Public Site</a> · <a href="#ops">Ops</a> · <a href="#">Log out</a>
-    </div>
-  </div>
-</footer>
-
-<!-- Optional keyboard shortcuts (no external deps) -->
-<script>
-  const focusSearch = () => {
-    const el = document.querySelector('input[type="search"]');
-    if (el) { el.focus(); el.select(); }
-  };
-  window.addEventListener('keydown', (e) => {
-    if (e.key === '/') { e.preventDefault(); focusSearch(); }
-    if (e.key === '?') { alert('Shortcuts:\\n / focus search\\n ? this help'); }
-  });
-
-  // Raspberry Pi Stats Monitoring (compact)
-  async function updatePiStats() {
-    const errorEl = document.getElementById('stats-error');
-    try {
-      const res = await fetch('/api/stats', { cache: 'no-store' });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-
-      // CPU
-      const tempC = data?.cpu?.temp_c;
-      const cpuPct = data?.cpu?.usage_percent;
-      document.getElementById('cpu-temp').textContent = (typeof tempC === 'number') ? `${tempC.toFixed(1)}°C` : '--°C';
-      document.getElementById('cpu-usage').textContent = (typeof cpuPct === 'number') ? `${cpuPct.toFixed(1)}%` : '--%';
-
-      // Memory
-      const total = data?.memory?.total || 0;
-      const used = data?.memory?.used || 0;
-      const percent = data?.memory?.percent;
-      const toMB = (b) => (b ? (b/1024/1024) : 0);
-      const memBrief = (total && used)
-        ? `${toMB(used).toFixed(0)} / ${toMB(total).toFixed(0)} MB${typeof percent==='number' ? ` (${percent.toFixed(0)}%)` : ''}`
-        : '--';
-      document.getElementById('mem-brief').textContent = memBrief;
-
-      // Uptime
-      const up = data?.uptime_seconds || 0;
-      const d = Math.floor(up/86400);
-      const h = Math.floor((up%86400)/3600);
-      const m = Math.floor((up%3600)/60);
-      const s = Math.floor(up%60);
-      document.getElementById('uptime').textContent = `${d}d ${h}h ${m}m ${s}s`;
-
-      // Network
-      const ipv4 = Array.isArray(data?.network?.ipv4_addresses) ? data.network.ipv4_addresses : [];
-      const reachable = data?.network?.internet_reachable;
-      document.getElementById('net-brief').textContent = `${reachable ? 'Online' : 'Offline'}${ipv4.length ? ' · ' + ipv4.join(', ') : ''}`;
-      document.getElementById('ipv4-list').textContent = JSON.stringify(ipv4);
-
-      // Services
-      const services = data?.services || {};
-      const setSvc = (id, state) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        const s = (state || 'unknown').toLowerCase();
-        el.textContent = `${el.textContent.split(':')[0]}: ${s}`;
-        el.className = 'pill ' + (s === 'active' ? 'ok' : ((s === 'inactive' || s === 'failed' || s === 'deactivating') ? 'danger' : ''));
-      };
-      setSvc('svc-camera', services.camera);
-      setSvc('svc-stepper', services.stepper);
-      setSvc('svc-nginx', services.nginx);
-      setSvc('svc-tailscaled', services.tailscaled);
-      setSvc('svc-webhook', services.webhook_deploy);
-
-      // Ports
-      const ports = data?.ports || {};
-      document.getElementById('port-rtsp').textContent = ports.rtsp_8554 === true ? 'open' : (ports.rtsp_8554 === false ? 'closed' : 'n/a');
-      document.getElementById('port-api').textContent = ports.api_8000 === true ? 'open' : (ports.api_8000 === false ? 'closed' : 'n/a');
-
-      // OS
-      const os = data?.os || {};
-      const pretty = os.pretty_name || 'Unknown OS';
-      const kernel = os.kernel || '?';
-      const arch = os.arch || '?';
-      document.getElementById('os-brief').textContent = `${pretty} (${kernel}, ${arch})`;
-
-      // Timestamp
-      const stamp = data?.timestamp || new Date().toISOString();
-      document.getElementById('last-update').textContent = stamp;
-
-      if (errorEl) errorEl.style.display = 'none';
-    } catch (err) {
-      console.error('Stats error', err);
-      if (errorEl) errorEl.style.display = '';
-    }
-  }
-
-  // Initialize stats on page load
-  if (document.getElementById('pi-stats')) {
-    updatePiStats();
-    setInterval(updatePiStats, 5000);
-  }
-
-  // Stepper controls
-  async function fetchStepper(path, opts={}){
-    const res = await fetch(path, { method: 'POST', ...opts, headers: { 'Content-Type': 'application/json' }});
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`${res.status} ${t}`);
-    }
-    return res.json().catch(()=>({}));
-  }
-
-  async function loadStepperStatus(){
-    try{
-      const res = await fetch('/api/stepper/status', { cache: 'no-store' });
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      const s = await res.json();
-      document.getElementById('stepper-enabled').textContent = s.enabled ? 'yes' : 'no';
-      document.getElementById('stepper-moving').textContent = s.moving ? 'yes' : 'no';
-      document.getElementById('stepper-pos').textContent = s.position_steps ?? 0;
-      document.getElementById('stepper-err').textContent = s.last_error || '-';
-      document.getElementById('stepper-state').textContent = s.worker_alive ? 'worker:alive' : 'worker:idle';
-    }catch(e){
-      document.getElementById('stepper-state').textContent = 'unreachable';
-      document.getElementById('stepper-err').textContent = String(e);
-    }
-  }
-
-  function bindStepperButtons(){
-    const msg = document.getElementById('stepper-msg');
-    const busy = new Set();
-    const click = (id, fn) => {
-      const el = document.getElementById(id);
-      if(!el) return;
-      el.addEventListener('click', async ()=>{
-        if (busy.has(id)) return; busy.add(id); el.disabled = true;
-        msg.textContent='';
-        try{ await fn(); msg.textContent = 'OK'; }
-        catch(e){ msg.textContent = 'Error: '+ e; }
-        finally{ await loadStepperStatus(); busy.delete(id); el.disabled=false; }
-      });
-    };
-
-    click('btn-enable', ()=> fetchStepper('/api/stepper/enable'));
-    click('btn-disable', ()=> fetchStepper('/api/stepper/disable'));
-    click('btn-open', ()=> fetchStepper('/api/stepper/open'));
-    click('btn-close', ()=> fetchStepper('/api/stepper/close'));
-    click('btn-abort', ()=> fetchStepper('/api/stepper/abort'));
-    click('btn-step-minus', ()=> fetchStepper('/api/stepper/step?steps=-10'));
-    click('btn-step-plus', ()=> fetchStepper('/api/stepper/step?steps=10'));
-  }
-
-  if (document.getElementById('actuators')){
-    bindStepperButtons();
-    loadStepperStatus();
-    setInterval(loadStepperStatus, 3000);
-  }
-</script>
+  <!-- Dashboard JavaScript -->
+  <script src="/assets/js/dashboard.js"></script>
 </body>
 </html>
