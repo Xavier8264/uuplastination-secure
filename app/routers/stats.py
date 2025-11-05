@@ -192,6 +192,26 @@ def _os_info() -> Dict[str, Optional[str]]:
     return {"pretty_name": pretty, "kernel": kernel, "arch": arch}
 
 
+def _format_uptime(seconds: Optional[float]) -> str:
+    """Format uptime in human-readable format (e.g., '4d 12h 34m')."""
+    if seconds is None:
+        return "unknown"
+    
+    days = int(seconds // 86400)
+    hours = int((seconds % 86400) // 3600)
+    minutes = int((seconds % 3600) // 60)
+    
+    parts = []
+    if days > 0:
+        parts.append(f"{days}d")
+    if hours > 0:
+        parts.append(f"{hours}h")
+    if minutes > 0 or not parts:
+        parts.append(f"{minutes}m")
+    
+    return " ".join(parts)
+
+
 @router.get("/stats")
 def get_stats() -> Dict[str, Any]:
     # Build payload with graceful fallbacks and short timeouts
@@ -231,4 +251,25 @@ def get_stats() -> Dict[str, Any]:
         "ports": ports,
         "os": osi,
         "timestamp": ts,
+    }
+
+
+@router.get("/system/metrics")
+def get_system_metrics() -> Dict[str, Any]:
+    """Simplified system metrics endpoint for frontend dashboard."""
+    cpu_temp = _read_cpu_temp_c()
+    cpu_usage = _cpu_usage_percent()
+    mem = _memory_stats()
+    uptime_sec = _uptime_seconds()
+    
+    # Calculate memory in GB
+    mem_used_gb = (mem.get("used") or 0) / (1024 ** 3)
+    mem_total_gb = (mem.get("total") or 8 * 1024 ** 3) / (1024 ** 3)
+    
+    return {
+        "cpuTemp": cpu_temp or 0.0,
+        "cpuUsage": cpu_usage or 0.0,
+        "memoryUsage": mem_used_gb,
+        "memoryTotal": mem_total_gb,
+        "uptime": _format_uptime(uptime_sec),
     }

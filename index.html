@@ -1,606 +1,426 @@
-<!DOCTYPE html><!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plastination Control System – Secure</title>
+  <style>
+    :root{
+      --bg: #f5f5f7;          /* Apple's light background */
+      --panel: rgba(255,255,255,0.85); /* frosted glass */
+      --panel-2: rgba(249,249,249,0.9);
+      --border: rgba(0,0,0,0.08);
+      --text: #1d1d1f;        /* Apple's primary text */
+      --muted: #86868b;       /* Apple's secondary text */
+      --primary: #007aff;     /* Apple blue */
+      --accent: #30d158;      /* Apple green */
+      --success: #30d158;     /* Apple green */
+      --warning: #ff9500;     /* Apple orange */
+      --danger: #ff3b30;      /* Apple red */
+      --shadow: 0 2px 16px rgba(0,0,0,0.12);
+      --radius: 12px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background: var(--bg);
+      color:var(--text);
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      letter-spacing: -0.01em;
+      font-weight: 400;
+      overflow-x: hidden;
+    }
+    header{
+      position:sticky; top:0; z-index:5;
+      display:flex; align-items:center; gap:16px; justify-content:space-between;
+      padding:16px 24px; border-bottom:1px solid var(--border);
+      background: var(--panel);
+      backdrop-filter: blur(20px) saturate(1.8);
+      -webkit-backdrop-filter: blur(20px) saturate(1.8);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.5), 0 1px 20px rgba(0,0,0,0.08);
+    }
+    .title{font-size:20px; font-weight:600; letter-spacing:-0.02em}
+    .chip{display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border:1px solid var(--border); border-radius:16px; color:var(--muted); background:var(--panel); backdrop-filter: blur(10px)}
+    .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:8px 16px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:8px; cursor:pointer; transition:all 0.2s ease; box-shadow:var(--shadow); font-weight:500; font-size:14px; backdrop-filter: blur(10px)}
+    .btn:hover{transform:translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.15); border-color:rgba(0,0,0,0.12)}
+    .btn:active{transform:translateY(0); box-shadow:var(--shadow)}
+    .btn:disabled{opacity:.4; cursor:not-allowed; transform:none}
+    .btn.primary{background:var(--primary); border-color:var(--primary); color:white; font-weight:600}
+    .btn.primary:hover{background:#0051d5; border-color:#0051d5}
+    .btn.danger{background:var(--danger); border-color:var(--danger); color:white; font-weight:600}
+    .btn.danger:hover{background:#d70015; border-color:#d70015}
 
-<html lang="en" data-theme="dark"><html lang="en">
+    main{max-width:1600px; margin:20px auto; padding:0 24px}
+    .grid{display:grid; grid-template-columns: 7fr 3fr; gap:20px}
+    @media (max-width:1100px){ .grid{grid-template-columns: 1fr;}}
+    .card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; backdrop-filter: blur(20px)}
+    .card h3{margin:0; font-size:13px; font-weight:600; color:var(--text); text-transform:uppercase; letter-spacing:0.05em}
+    .card .hdr{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 20px; border-bottom:1px solid var(--border); background: var(--panel-2)}
+    .card .body{padding:20px}
+    .muted{color:var(--muted)}
+    .mono{font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-weight:500}
 
-<head><head>
+    /* camera */
+    .camera-wrap{position:relative; aspect-ratio:16/9; background:#f0f0f0; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
+    .camera-wrap img, .camera-wrap video, .camera-wrap canvas{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+    .badge{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:12px; font-size:11px; border:1px solid var(--border); background:var(--panel); font-weight:500; backdrop-filter: blur(10px)}
+    .badge.success{background:rgba(48, 209, 88, 0.1); color:var(--success); border-color:rgba(48, 209, 88, 0.2)}
+    .badge.warn{background:rgba(255, 149, 0, 0.1); color:var(--warning); border-color:rgba(255, 149, 0, 0.2)}
 
-  <meta charset="UTF-8" />  <meta charset="UTF-8" />
+    /* valve */
+    .range-bar{position:relative; height:8px; border-radius:4px; background:rgba(0,0,0,0.06); border:none; overflow:hidden}
+    .range-bar > div{position:absolute; inset:0 0 0 0; transform-origin:left center; background:linear-gradient(90deg, var(--primary), var(--accent)); border-radius:4px}
+    .valve-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
 
-  <meta name="viewport" content="width=device-width, initial-scale=1" />  <meta name="viewport" content="width=device-width, initial-scale=1" />
+    /* chart */
+    .chart{height:280px; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); position:relative}
+    .ylabels{position:absolute; left:12px; top:12px; bottom:12px; display:flex; flex-direction:column; justify-content:space-between; color:var(--muted); font-size:11px; font-weight:500}
 
-  <title>Plastination Control — Secure Dashboard</title>  <title>UU Plastination — Secure Dashboard</title>
+    /* status table */
+    .kv{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid rgba(0,0,0,0.05)}
+    .kv:last-child{border-bottom:none}
 
-  <meta name="description" content="Lab control dashboard for the UU Plastination project" />  <meta name="description" content="Private, authenticated dashboard for UU Plastination team." />
+    .footer{margin:12px 0 0; font-size:12px; color:var(--muted); font-weight:400}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">Plastination Control System</div>
+    <div class="chip mono" id="rec-chip">
+      <span id="rec-dot">●</span>
+      <span id="rec-label">Standby</span>
+    </div>
+    <div style="display:flex; gap:10px">
+      <button class="btn" id="toggle-record">Toggle Recording</button>
+      <a class="btn danger" href="/logout">Logout</a>
+    </div>
+  </header>
 
-    
-
-  <!-- Apple-inspired Design System -->  <!-- Design System -->
-
-  <link rel="stylesheet" href="/assets/styles/design-tokens.css" />  <link rel="stylesheet" href="/assets/styles/design-tokens.css" />
-
-  <link rel="stylesheet" href="/assets/styles/dashboard.css" />  <link rel="stylesheet" href="/assets/styles/dashboard.css" />
-
-</head></head>
-
-<body><body>
-
-  <!-- Sticky Header Bar -->  <!-- Dashboard Header -->
-
-  <header class="header-bar" role="banner">  <header class="dashboard-header" role="banner">
-
-    <div class="header-bar-left">    <div class="header-branding">
-
-      <h1 class="header-title">Plastination Control</h1>      <div class="header-logo" aria-hidden="true"></div>
-
-    </div>      <div class="header-title">
-
-            <h1>UU Plastination</h1>
-
-    <div class="header-bar-center">        <span class="header-subtitle">Secure Dashboard</span>
-
-      <button       </div>
-
-        type="button"     </div>
-
-        id="recording-control"     
-
-        class="recording-control"    <div class="header-controls">
-
-        aria-label="Toggle recording">      <span class="secure-badge">
-
-        <div class="recording-dot-hollow" id="recording-dot"></div>        <span aria-hidden="true">🔒</span>
-
-        <span id="recording-text">Record</span>        Secure
-
-      </button>      </span>
-
-    </div>      <button 
-
-            type="button" 
-
-    <div class="header-bar-right">        id="theme-toggle" 
-
-      <span class="status-badge info" id="user-badge">        class="theme-toggle" 
-
-        <span class="status-dot"></span>        aria-label="Toggle theme"
-
-        <span class="text-mono">Team</span>        title="Toggle light/dark mode (t)">
-
-      </span>        🌙
-
-      <button       </button>
-
-        type="button"     </div>
-
-        id="theme-toggle"   </header>
-
-        class="btn btn-small" 
-
-        aria-label="Toggle theme"  <!-- Main Dashboard -->
-
-        title="Toggle light/dark mode (t)"  <main class="dashboard-container" role="main">
-
-        style="padding: var(--space-2); aspect-ratio: 1;">    
-
-        <span aria-hidden="true">🌙</span>    <!-- Dashboard Grid -->
-
-      </button>    <div class="dashboard-grid">
-
-    </div>      
-
-  </header>      <!-- Live Camera Widget (2×3 columns) -->
-
-      <section class="card span-6 row-span-2" role="region" aria-labelledby="camera-title">
-
-  <!-- Main Dashboard -->        <div class="card-header">
-
-  <main class="dashboard-container" role="main">          <h2 class="card-title" id="camera-title">
-
-                <span aria-hidden="true">📹</span>
-
-    <!-- Dashboard Grid -->            Live Camera
-
-    <div class="dashboard-grid">          </h2>
-
+  <main>
+    <div class="grid">
+      <!-- Left column (≈70%) -->
+      <section style="display:flex; flex-direction:column; gap:20px">
+        <!-- Camera Feed -->
+        <div class="card">
+          <div class="hdr">
+            <h3>Live Camera Feed</h3>
+            <div style="display:flex; gap:8px; align-items:center">
+              <span class="badge success" id="cam-status">● Connected</span>
+              <span class="badge" id="bubble-chip">0 bubbles detected</span>
+            </div>
+          </div>
+          <div class="body">
+            <div class="camera-wrap">
+              <!-- If you are serving an MJPEG stream, expose it at /camera/stream.mjpg -->
+              <img id="cam" alt="Camera stream" src="/camera/stream.mjpg" onerror="this.dataset.err=1;document.getElementById('cam-status').textContent='Disconnected';document.getElementById('cam-status').className='badge warn'">
+              <!-- Lightweight overlay canvas for future detections -->
+              <canvas id="overlay"></canvas>
+              <div style="position:absolute; left:12px; bottom:12px; display:flex; gap:8px">
+                <span class="badge mono" id="cam-meta">1920×1080 • 30 FPS</span>
+                <span class="badge mono" id="clock"></span>
               </div>
-
-      <!-- Camera Feed (7 cols × 3 rows on xl, full width on md) -->        <div class="card-body">
-
-      <section class="card span-7 row-span-3" role="region" aria-labelledby="camera-title">          <div class="camera-widget" id="camera-widget">
-
-        <div class="card-header">            <img 
-
-          <h2 class="card-title" id="camera-title">              src="/stream.mjpg" 
-
-            <span aria-hidden="true">📹</span>              alt="Live camera stream" 
-
-            Camera Feed              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-
-          </h2>            />
-
-          <div class="camera-toolbar">            <div class="camera-placeholder" style="display: none;">
-
-            <span class="text-mono text-muted" style="font-size: var(--text-sm);" id="camera-resolution">1280×720</span>              <span>📷 Camera stream unavailable</span>
-
-          </div>            </div>
-
-        </div>            <div class="camera-overlay">
-
-        <div class="card-body">              <button type="button" id="camera-fullscreen-btn" class="btn btn-small" style="background: rgba(0,0,0,0.8); color: white; border-color: rgba(255,255,255,0.2);">
-
-          <div class="camera-widget" id="camera-widget">                <span aria-hidden="true">⤢</span> Fullscreen
-
-            <img               </button>
-
-              src="/stream.mjpg"             </div>
-
-              alt="Live camera stream"           </div>
-
-              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"        </div>
-
-            />        <div class="card-footer">
-
-            <div class="camera-placeholder" style="display: none;">          <div style="display: flex; justify-content: space-between; align-items: center;">
-
-              <span>📷 Camera stream unavailable</span>            <span class="text-muted" style="font-size: var(--text-sm);">
-
-            </div>              <span id="fps-value">30</span> FPS · Press <kbd style="padding: 2px 6px; background: var(--bg-secondary); border-radius: 4px; font-family: var(--font-mono); font-size: 12px;">f</kbd> for fullscreen
-
-            <div class="camera-overlay">            </span>
-
-              <div class="camera-info">          </div>
-
-                <span class="live-badge">        </div>
-
-                  <span class="status-dot"></span>      </section>
-
-                  LIVE
-
-                </span>      <!-- Bubble Rate Widget (1×1) -->
-
-                <span class="text-mono"><span id="camera-fps">30</span> fps</span>      <section class="card span-3" role="region" aria-labelledby="bpm-title">
-
-                <span style="color: rgba(255,255,255,0.4);">•</span>        <div class="card-header">
-
-                <span class="text-mono">Latency <span id="camera-latency">120</span> ms</span>          <h2 class="card-title" id="bpm-title">
-
-              </div>            <span aria-hidden="true">🫧</span>
-
-              <button type="button" id="camera-fullscreen-btn" class="btn btn-small" style="background: rgba(0,0,0,0.8); color: white; border-color: rgba(255,255,255,0.2);">            Bubble Rate
-
-                <span aria-hidden="true">⤢</span> Fullscreen          </h2>
-
-              </button>        </div>
-
-            </div>        <div class="card-body">
-
-          </div>          <div class="metric">
-
-        </div>            <div class="metric-value">
-
-      </section>              <span id="bubble-rate-value">72</span>
-
-              <span class="unit">BPM</span>
-
-      <!-- Bubble Rate Chart (5 cols × 2 rows on xl) -->            </div>
-
-      <section class="card span-5 row-span-2" role="region" aria-labelledby="chart-title">            <div class="metric-delta up" id="bubble-rate-delta" aria-live="polite">
-
-        <div class="card-header">              ▲ +4 vs last min
-
-          <h2 class="card-title" id="chart-title">            </div>
-
-            <span aria-hidden="true">📈</span>          </div>
-
-            Bubble Rate        </div>
-
-          </h2>      </section>
-
-          <div class="chart-controls">
-
-            <button type="button" class="chart-chip active" data-range="15m">15m</button>      <!-- AI Status Widget (1×1) -->
-
-            <button type="button" class="chart-chip" data-range="1h">1h</button>      <section class="card span-3" role="region" aria-labelledby="ai-title">
-
-            <button type="button" class="chart-chip" data-range="6h">6h</button>        <div class="card-header">
-
-            <button type="button" class="chart-chip" data-range="24h">24h</button>          <h2 class="card-title" id="ai-title">
-
-          </div>            <span aria-hidden="true">🤖</span>
-
-        </div>            AI Status
-
-        <div class="card-body">          </h2>
-
-          <div class="chart-container" id="bubble-chart">        </div>
-
-            <!-- Chart will be rendered here via JavaScript / Canvas -->        <div class="card-body" style="gap: var(--space-3);">
-
-            <canvas id="bubble-chart-canvas" style="width: 100%; height: 100%;"></canvas>          <div>
-
-          </div>            <span class="status-badge warning" id="ai-status-badge">
-
-        </div>              <span class="status-dot"></span>
-
-      </section>              Idle
-
-            </span>
-
-      <!-- Current Bubble Rate (5 cols × 1 row on xl) -->          </div>
-
-      <section class="card span-5" role="region" aria-labelledby="bpm-title">          <div style="font-size: var(--text-sm);">
-
-        <div class="card-header">            <div style="color: var(--text-secondary); margin-bottom: var(--space-1);">Model</div>
-
-          <h2 class="card-title" id="bpm-title">            <div style="font-weight: var(--font-semibold); font-family: var(--font-mono);" id="ai-model-name">YOLOv8n</div>
-
-            <span aria-hidden="true">🫧</span>          </div>
-
-            Current Bubble Rate          <div style="font-size: var(--text-sm);">
-
-          </h2>            <div style="color: var(--text-secondary); margin-bottom: var(--space-1);">Last Updated</div>
-
-        </div>            <div style="font-family: var(--font-mono); font-size: var(--text-sm);" id="ai-last-updated">--:--:--</div>
-
-        <div class="card-body">          </div>
-
-          <div class="metric">        </div>
-
-            <div class="metric-value">      </section>
-
-              <span id="bubble-rate-value">72</span>
-
-              <span class="unit">BPM</span>      <!-- Valve Control Widget (2×1) -->
-
-            </div>      <section class="card span-6" role="region" aria-labelledby="valve-title">
-
-            <div class="metric-delta up" id="bubble-rate-delta" aria-live="polite">        <div class="card-header">
-
-              ▲ +1.6 vs 5min avg          <h2 class="card-title" id="valve-title">
-
-            </div>            <span aria-hidden="true">🦾</span>
-
-          </div>            Valve Control
-
-        </div>          </h2>
-
-      </section>          <span class="text-muted text-mono" style="font-size: var(--text-sm);">
-
-            Position: <span id="stepper-position">0</span> steps
-
-      <!-- Valve Control (6 cols on xl, 3 on md) -->          </span>
-
-      <section class="card span-6" role="region" aria-labelledby="valve-title">        </div>
-
-        <div class="card-header">        <div class="card-body">
-
-          <h2 class="card-title" id="valve-title">          <div class="slider-control">
-
-            <span aria-hidden="true">🦾</span>            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2);">
-
-            Valve Control              <span class="text-muted" style="font-size: var(--text-sm);" id="stepper-status-text">Ready</span>
-
-          </h2>              <span class="slider-value" id="stepper-slider-value">50</span>
-
-          <span class="text-muted text-mono" style="font-size: var(--text-sm);">            </div>
-
-            <span id="valve-status-text">Ready</span>            <div class="slider-track">
-
-          </span>              <div class="slider-fill" style="width: 50%;"></div>
-
-        </div>              <input 
-
-        <div class="card-body">                type="range" 
-
-          <div class="valve-control">                id="stepper-slider"
-
-            <div class="position-value">                class="slider-input" 
-
-              <span id="valve-position">50</span><span class="text-muted">%</span>                min="0" 
-
-            </div>                max="100" 
-
-            <div class="position-bar">                value="50"
-
-              <div class="position-fill" id="valve-position-fill" style="width: 50%;"></div>                aria-label="Valve position"
-
-            </div>              />
-
-            <div class="position-label">            </div>
-
-              <span>Closed</span>          </div>
-
-              <span>Open</span>          <div class="btn-group" style="margin-top: var(--space-4);">
-
-            </div>            <button type="button" id="stepper-enable" class="btn btn-primary">
-
-          </div>              <span aria-hidden="true">▶️</span> Enable
-
-          <div class="btn-group" style="margin-top: var(--space-4);">            </button>
-
-            <button type="button" id="valve-minus" class="btn">            <button type="button" id="stepper-disable" class="btn">
-
-              <span aria-hidden="true">−</span>              <span aria-hidden="true">⏸️</span> Disable
-
-            </button>            </button>
-
-            <button type="button" id="valve-enable" class="btn btn-primary">            <button type="button" id="stepper-open" class="btn">
-
-              Enable              <span aria-hidden="true">⬆️</span> Open
-
-            </button>            </button>
-
-            <button type="button" id="valve-disable" class="btn">            <button type="button" id="stepper-close" class="btn">
-
-              Disable              <span aria-hidden="true">⬇️</span> Close
-
-            </button>            </button>
-
-            <button type="button" id="valve-plus" class="btn">            <button type="button" id="stepper-abort" class="btn" style="border-color: var(--error); color: var(--error);">
-
-              <span aria-hidden="true">+</span>              <span aria-hidden="true">⛔</span> Abort
-
-            </button>            </button>
-
-            <button type="button" id="valve-abort" class="btn btn-danger" title="Emergency stop">          </div>
-
-              <span aria-hidden="true">⛔</span> Abort          <div id="stepper-message" class="text-muted" style="margin-top: var(--space-3); font-size: var(--text-sm); min-height: 20px;"></div>
-
-            </button>        </div>
-
-          </div>      </section>
-
-          <div class="btn-group" style="margin-top: var(--space-2);">
-
-            <button type="button" id="valve-open" class="btn">      <!-- System Alerts Widget (1×1) -->
-
-              <span aria-hidden="true">⬆️</span> Open      <section class="card span-3" role="region" aria-labelledby="alerts-title">
-
-            </button>        <div class="card-header">
-
-            <button type="button" id="valve-close" class="btn">          <h2 class="card-title" id="alerts-title">
-
-              <span aria-hidden="true">⬇️</span> Close            <span aria-hidden="true">⚠️</span>
-
-            </button>            System Alerts
-
-          </div>          </h2>
-
-          <div id="valve-message" class="text-muted" style="margin-top: var(--space-3); font-size: var(--text-sm); min-height: 20px;"></div>        </div>
-
-        </div>        <div class="card-body">
-
-      </section>          <div class="alert-list" id="alerts-list">
-
-            <div class="empty-state" style="padding: var(--space-6);">
-
-      <!-- System Status (6 cols on xl, 3 on md) -->              <div class="empty-state-icon">✓</div>
-
-      <section class="card span-6" role="region" aria-labelledby="status-title">              <div class="empty-state-message">No alerts</div>
-
-        <div class="card-header">            </div>
-
-          <h2 class="card-title" id="status-title">          </div>
-
-            <span aria-hidden="true">💻</span>        </div>
-
-            System Status      </section>
-
-          </h2>
-
-        </div>      <!-- Quick Actions Widget (1×1) -->
-
-        <div class="card-body">      <section class="card span-3" role="region" aria-labelledby="actions-title">
-
-          <div class="status-list">        <div class="card-header">
-
-            <div class="status-row">          <h2 class="card-title" id="actions-title">
-
-              <span class="status-icon" aria-hidden="true">🌡️</span>            <span aria-hidden="true">⚡</span>
-
-              <div class="status-content">            Quick Actions
-
-                <div class="status-name">CPU Temp</div>          </h2>
-
-                <div class="status-value"><span id="cpu-temp">45.2</span>°C</div>        </div>
-
-              </div>        <div class="card-body">
-
-            </div>          <div class="btn-group" style="flex-direction: column;">
-
-                        <button type="button" class="btn btn-large" onclick="alert('Start stream feature coming soon')">
-
-            <div class="status-row">              <span aria-hidden="true">▶️</span> Start Stream
-
-              <span class="status-icon" aria-hidden="true">💻</span>            </button>
-
-              <div class="status-content">            <button type="button" class="btn btn-large" onclick="alert('Restart AI feature coming soon')">
-
-                <div class="status-name">CPU Usage</div>              <span aria-hidden="true">🔄</span> Restart AI
-
-                <div class="status-value"><span id="cpu-usage">35.4</span>%</div>            </button>
-
-              </div>            <button type="button" class="btn btn-large" onclick="alert('Snapshot feature coming soon')">
-
-            </div>              <span aria-hidden="true">📸</span> Snapshot
-
-                        </button>
-
-            <div class="status-row">            <a href="#logs" class="btn btn-large">
-
-              <span class="status-icon" aria-hidden="true">🧠</span>              <span aria-hidden="true">📋</span> View Logs
-
-              <div class="status-content">            </a>
-
-                <div class="status-name">Memory</div>          </div>
-
-                <div class="status-value"><span id="memory-usage">2.1</span> / 4 GB</div>        </div>
-
-              </div>      </section>
-
             </div>
+          </div>
+        </div>
 
-                  <!-- Logs Widget (3×2) -->
-
-            <div class="status-row">      <section class="card span-6 row-span-2" role="region" aria-labelledby="logs-title" id="logs">
-
-              <span class="status-icon" aria-hidden="true">📹</span>        <div class="card-header">
-
-              <div class="status-content">          <h2 class="card-title" id="logs-title">
-
-                <div class="status-name">Camera</div>            <span aria-hidden="true">📋</span>
-
-                <div class="status-value" id="camera-service">Active</div>            System Logs
-
-              </div>          </h2>
-
-            </div>          <a href="#" class="btn btn-small" onclick="alert('View all logs feature coming soon'); return false;">View All</a>
-
-                    </div>
-
-            <div class="status-row">        <div class="card-body">
-
-              <span class="status-icon" aria-hidden="true">🦾</span>          <div class="log-list" id="logs-container">
-
-              <div class="status-content">            <!-- Logs will be populated by JavaScript -->
-
-                <div class="status-name">Stepper</div>          </div>
-
-                <div class="status-value" id="stepper-service">Active</div>        </div>
-
-              </div>      </section>
-
+        <!-- Bubble Rate History (placeholder; regenerates mock data) -->
+        <div class="card">
+          <div class="hdr">
+            <h3>Bubble Rate History</h3>
+            <div style="display:flex; gap:8px">
+              <div style="display:flex; gap:6px">
+                <button class="btn" data-range="1h">1h</button>
+                <button class="btn" data-range="6h">6h</button>
+                <button class="btn" data-range="24h">24h</button>
+                <button class="btn" data-range="7d">7d</button>
+              </div>
+              <button id="export" class="btn">Export CSV</button>
             </div>
-
-                  <!-- CPU Temperature Tile (1×1) -->
-
-            <div class="status-row">      <section class="card span-2" role="region" aria-labelledby="cpu-temp-title">
-
-              <span class="status-icon" aria-hidden="true">🌐</span>        <div class="stat-tile">
-
-              <div class="status-content">          <div class="stat-icon" aria-hidden="true">🌡️</div>
-
-                <div class="status-name">API Health</div>          <div class="stat-label" id="cpu-temp-title">CPU Temp</div>
-
-                <div class="status-value" id="api-health">OK</div>          <div class="stat-value">
-
-              </div>            <span id="cpu-temp-value">45.2</span>°C
-
-            </div>          </div>
-
-                    </div>
-
-            <div class="status-row">      </section>
-
-              <span class="status-icon" aria-hidden="true">🔌</span>
-
-              <div class="status-content">      <!-- FPS Tile (1×1) -->
-
-                <div class="status-name">Stream</div>      <section class="card span-2" role="region" aria-labelledby="fps-title">
-
-                <div class="status-value" id="stream-status">OK</div>        <div class="stat-tile">
-
-              </div>          <div class="stat-icon" aria-hidden="true">🎬</div>
-
-            </div>          <div class="stat-label" id="fps-title">Frame Rate</div>
-
-                      <div class="stat-value">
-
-            <div class="status-row">            <span id="fps-value-alt">30</span> FPS
-
-              <span class="status-icon" aria-hidden="true">⏱️</span>          </div>
-
-              <div class="status-content">        </div>
-
-                <div class="status-name">Uptime</div>      </section>
-
-                <div class="status-value" id="uptime">5d 14h</div>
-
-              </div>      <!-- Uptime Tile (1×1) -->
-
-            </div>      <section class="card span-2" role="region" aria-labelledby="uptime-title">
-
-          </div>        <div class="stat-tile">
-
-        </div>          <div class="stat-icon" aria-hidden="true">⏱️</div>
-
-      </section>          <div class="stat-label" id="uptime-title">Uptime</div>
-
-          <div class="stat-value" style="font-size: var(--text-xl);" id="uptime-value">
-
-      <!-- Alerts / Events (6 cols on xl, full on md) -->            5d 14h
-
-      <section class="card span-6" role="region" aria-labelledby="alerts-title">          </div>
-
-        <div class="card-header">        </div>
-
-          <h2 class="card-title" id="alerts-title">      </section>
-
-            <span aria-hidden="true">⚠️</span>
-
-            System Alerts      <!-- CPU Usage Tile (1×1) -->
-
-          </h2>      <section class="card span-2" role="region" aria-labelledby="cpu-usage-title">
-
-          <button type="button" class="btn btn-small">        <div class="stat-tile">
-
-            Clear All          <div class="stat-icon" aria-hidden="true">💻</div>
-
-          </button>          <div class="stat-label" id="cpu-usage-title">CPU Usage</div>
-
-        </div>          <div class="stat-value">
-
-        <div class="card-body">            <span id="cpu-usage-value">45.3</span>%
-
-          <div class="alerts-list" id="alerts-container">          </div>
-
-            <!-- Alerts will be populated by JavaScript -->        </div>
-
-            <div class="empty-state" style="padding: var(--space-8);">      </section>
-
-              <div class="empty-state-icon">✓</div>
-
-              <div class="empty-state-title">All Clear</div>      <!-- Memory Usage Tile (1×1) -->
-
-              <div class="empty-state-message">No active alerts or warnings</div>      <section class="card span-2" role="region" aria-labelledby="mem-title">
-
-            </div>        <div class="stat-tile">
-
-          </div>          <div class="stat-icon" aria-hidden="true">🧠</div>
-
-        </div>          <div class="stat-label" id="mem-title">Memory</div>
-
-      </section>          <div class="stat-value" style="font-size: var(--text-xl);">
-
-            2.1 / 4 GB
-
-    </div>          </div>
-
-  </main>        </div>
-
-      </section>
-
-  <!-- Dashboard JavaScript -->
-
-  <script src="/assets/js/dashboard.js"></script>      <!-- Network Status Tile (1×1) -->
-
-</body>      <section class="card span-2" role="region" aria-labelledby="net-title">
-
-</html>        <div class="stat-tile">
-
-          <div class="stat-icon" aria-hidden="true">🌐</div>
-          <div class="stat-label" id="net-title">Network</div>
-          <div class="status-badge success" style="margin-top: var(--space-2);">
-            <span class="status-dot"></span>
-            Online
+          </div>
+          <div class="body">
+            <div class="chart" id="chart">
+              <svg id="chart-svg" viewBox="0 0 1000 300" width="100%" height="100%"></svg>
+              <div class="ylabels mono" id="ylabels"></div>
+            </div>
+            <div class="footer mono" id="points">0 data points</div>
           </div>
         </div>
       </section>
 
+      <!-- Right column (≈30%) -->
+      <aside style="display:flex; flex-direction:column; gap:20px">
+        <!-- Valve Control -->
+        <div class="card">
+          <div class="hdr"><h3>Manual Valve Control</h3><span class="badge" id="valve-state">Ready</span></div>
+          <div class="body">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px">
+              <span class="muted">Current Position</span>
+              <strong class="mono" id="valve-pos">45%</strong>
+            </div>
+            <div class="range-bar" aria-hidden="true"><div id="valve-bar" style="transform:scaleX(.45)"></div></div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:6px"><span>Closed</span><span>Open</span></div>
+            <div class="valve-grid" style="margin-top:14px">
+              <button id="valve-close" class="btn">Close −5%</button>
+              <button id="valve-open"  class="btn primary">Open +5%</button>
+            </div>
+            <div class="footer">Motor: <span style="color:var(--success)">● Connected</span> • Increment: ±5%</div>
+          </div>
+        </div>
+
+        <!-- Bubble Rate Stats -->
+        <div class="card">
+          <div class="hdr"><h3>Bubble Rate Monitor</h3><span class="badge" style="background:rgba(0, 122, 255, 0.1); color:var(--primary); border-color:rgba(0, 122, 255, 0.2)">● Live</span></div>
+          <div class="body">
+            <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px">
+              <span class="muted">Current Rate</span>
+              <span id="trend-icon" class="mono" title="trend">→</span>
+            </div>
+            <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:16px">
+              <span class="mono" id="rate-now" style="font-size:44px; font-weight:700; color:var(--primary)">24</span>
+              <span class="muted">bubbles/min</span>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+              <div>
+                <div class="muted" style="font-size:12px">Average (10 min)</div>
+                <div class="mono" id="rate-avg" style="font-size:22px; font-weight:600">22</div>
+              </div>
+              <div>
+                <div class="muted" style="font-size:12px">Trend</div>
+                <div id="rate-trend" style="font-size:22px; font-weight:600; color:var(--muted)">→</div>
+              </div>
+              <div>
+                <div class="muted" style="font-size:12px">Peak Rate</div>
+                <div class="mono" id="rate-peak" style="font-size:22px; font-weight:600">27</div>
+              </div>
+              <div>
+                <div class="muted" style="font-size:12px">Min Rate</div>
+                <div class="mono" id="rate-min" style="font-size:22px; font-weight:600">17</div>
+              </div>
+            </div>
+            <div class="footer">Detection: <span style="color:var(--success)">● Running</span></div>
+          </div>
+        </div>
+
+        <!-- System Health -->
+        <div class="card">
+          <div class="hdr"><h3>System Health</h3><span class="badge success">All Systems Operational</span></div>
+          <div class="body">
+            <div class="kv"><span class="muted">CPU Temperature</span><strong class="mono" id="cpu-temp">52.0°C</strong></div>
+            <div class="kv"><span class="muted">CPU Usage</span>
+              <span class="mono"><span id="cpu-usage">34</span>%</span>
+            </div>
+            <div class="kv"><span class="muted">Memory</span><span class="mono" id="mem-usage">2.8 GB / 8 GB</span></div>
+            <div class="kv"><span class="muted">Camera</span><span class="badge success" id="cam-badge">Active</span></div>
+            <div class="kv"><span class="muted">Stepper Motor</span><span class="badge success" id="stepper-badge">Active</span></div>
+            <div class="kv"><span class="muted">Network</span><span class="badge success">Active</span></div>
+            <div class="footer">Raspberry Pi 5 (8GB) • Raspberry Pi OS 64‑bit • Uptime: <span id="uptime">4d 12h 34m</span></div>
+          </div>
+        </div>
+      </aside>
     </div>
   </main>
 
-  <!-- Dashboard JavaScript -->
-  <script src="/assets/js/dashboard.js"></script>
+  <script>
+    // --- Config ---
+    const CONFIG = {
+      valveOpen:  "/api/valve/open",
+      valveClose: "/api/valve/close",
+      metrics:    "/api/system/metrics",
+      stepperStatus: "/api/stepper/status",
+      bubblesWS:  `ws://${location.host}/camera/stream`, // future use
+    };
+
+    // --- Header recording toggle (placeholder) ---
+    const recBtn = document.getElementById('toggle-record');
+    const recChip = document.getElementById('rec-chip');
+    const recLabel = document.getElementById('rec-label');
+    const recDot = document.getElementById('rec-dot');
+    let isRecording = false;
+    recBtn.addEventListener('click', async () => {
+      isRecording = !isRecording;
+      recLabel.textContent = isRecording ? 'Recording' : 'Standby';
+      recDot.style.color = isRecording ? 'var(--danger)' : 'var(--muted)';
+      // Optional: await fetch('/api/recording/toggle', {method:'POST'});
+    });
+
+    // --- Live clock on camera ---
+    const clockEl = document.getElementById('clock');
+    setInterval(()=> clockEl.textContent = new Date().toLocaleTimeString(), 1000);
+
+    // --- Camera bubble-detection chip (simulated) ---
+    const bubbleChip = document.getElementById('bubble-chip');
+    setInterval(()=>{
+      const n = Math.floor(Math.random()*5);
+      bubbleChip.textContent = `${n} bubble${n===1?'':'s'} detected`;
+    }, 2000);
+
+    // --- Valve control (calls backend if available, otherwise simulates) ---
+    const stateEl = document.getElementById('valve-state');
+    const posEl = document.getElementById('valve-pos');
+    const barEl = document.getElementById('valve-bar');
+    let valvePos = 45;
+
+    async function postOrSim(url, delta){
+      stateEl.textContent = 'Moving…';
+      try{
+        const res = await fetch(url, {method:'POST'});
+        if(res.ok){
+          const js = await res.json().catch(()=>null);
+          if(js && typeof js.position === 'number') valvePos = js.position;
+          else valvePos = Math.min(100, Math.max(0, valvePos + delta));
+        }else{
+          valvePos = Math.min(100, Math.max(0, valvePos + delta));
+        }
+      }catch(_){
+        // offline/dev mode
+        valvePos = Math.min(100, Math.max(0, valvePos + delta));
+      }
+      renderValve();
+      stateEl.textContent = 'Ready';
+    }
+
+    function renderValve(){
+      posEl.textContent = `${valvePos}%`;
+      barEl.style.transform = `scaleX(${valvePos/100})`;
+    }
+
+    document.getElementById('valve-open').addEventListener('click', ()=> postOrSim(CONFIG.valveOpen, +5));
+    document.getElementById('valve-close').addEventListener('click',()=> postOrSim(CONFIG.valveClose, -5));
+
+    // --- Bubble rate stats (simulated drift) ---
+    const nowEl = document.getElementById('rate-now');
+    const avgEl = document.getElementById('rate-avg');
+    const peakEl = document.getElementById('rate-peak');
+    const minEl = document.getElementById('rate-min');
+    const trendTxt = document.getElementById('rate-trend');
+    const trendIcon = document.getElementById('trend-icon');
+    let rateNow = 24, rateAvg = 22;
+    function updateRates(){
+      const newRate = Math.max(0, rateNow + (Math.random()-0.5)*6);
+      const r = Math.round(newRate);
+      const prev = rateNow; rateNow = r; rateAvg = Math.round((rateAvg*9 + r)/10);
+      nowEl.textContent = rateNow; avgEl.textContent = rateAvg;
+      peakEl.textContent = Math.max(rateNow, rateAvg+5);
+      minEl.textContent = Math.max(0, rateAvg-5);
+      let t='→', ic='→';
+      if(r > prev+2){ t='↑'; ic='↑'; }
+      else if(r < prev-2){ t='↓'; ic='↓'; }
+      trendTxt.textContent = t; trendIcon.textContent = ic;
+    }
+    setInterval(updateRates, 3000);
+
+    // --- System metrics (try backend, else simulate) ---
+    const cpuTempEl  = document.getElementById('cpu-temp');
+    const cpuUsageEl = document.getElementById('cpu-usage');
+    const memUsageEl = document.getElementById('mem-usage');
+    const uptimeEl   = document.getElementById('uptime');
+    const stepperBadge = document.getElementById('stepper-badge');
+    const camBadge = document.getElementById('cam-badge');
+    
+    async function tickMetrics(){
+      try{
+        const r = await fetch(CONFIG.metrics);
+        if(r.ok){
+          const m = await r.json();
+          cpuTempEl.textContent  = `${m.cpuTemp.toFixed(1)}°C`;
+          cpuUsageEl.textContent = `${Math.round(m.cpuUsage)}`;
+          memUsageEl.textContent = `${m.memoryUsage.toFixed(1)} GB / ${m.memoryTotal.toFixed(1)} GB`;
+          if(m.uptime) uptimeEl.textContent = m.uptime;
+          return;
+        }
+      }catch(_){/* fallthrough to simulate */}
+      // simulate
+      const currT = parseFloat(cpuTempEl.textContent)||52;
+      const currU = parseInt(cpuUsageEl.textContent)||34;
+      const nextT = Math.max(40, Math.min(75, currT + (Math.random()-0.5)*3));
+      const nextU = Math.max(10, Math.min(90, currU + (Math.random()-0.5)*10));
+      cpuTempEl.textContent = `${nextT.toFixed(1)}°C`;
+      cpuUsageEl.textContent = `${Math.round(nextU)}`;
+    }
+    
+    async function tickStepperStatus(){
+      try{
+        const r = await fetch(CONFIG.stepperStatus);
+        if(r.ok){
+          const s = await r.json();
+          if(s.enabled && s.moving === false){
+            stepperBadge.className = 'badge success';
+            stepperBadge.textContent = 'Active';
+          } else if(s.moving){
+            stepperBadge.className = 'badge warn';
+            stepperBadge.textContent = 'Moving';
+          } else {
+            stepperBadge.className = 'badge';
+            stepperBadge.textContent = 'Disabled';
+          }
+        }
+      }catch(_){}
+    }
+    
+    setInterval(tickMetrics, 3000);
+    setInterval(tickStepperStatus, 1000);
+
+    // --- Chart (SVG, mock data) ---
+    const svg = document.getElementById('chart-svg');
+    const ylabels = document.getElementById('ylabels');
+    const pointsEl = document.getElementById('points');
+    let timeRange = '1h';
+    function genChart(){
+      const N = 60; // points
+      const now = Date.now();
+      const data = Array.from({length:N}, (_,i)=>{
+        const t = now - (N-i)*60000; // every minute
+        const rate = Math.max(0, 20 + Math.random()*10 + Math.sin(i/5)*5);
+        return {t, rate};
+      });
+      const rates = data.map(d=>d.rate);
+      const min = Math.min(...rates);
+      const max = Math.max(...rates);
+      // grid
+      svg.innerHTML = '';
+      for(let i=0;i<5;i++){
+        const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+        line.setAttribute('x1','0'); line.setAttribute('y1', String(60*i));
+        line.setAttribute('x2','1000'); line.setAttribute('y2', String(60*i));
+        line.setAttribute('stroke','rgba(0,0,0,0.08)'); line.setAttribute('stroke-width','1'); line.setAttribute('opacity','0.6');
+        svg.appendChild(line);
+      }
+      // polyline
+      const poly = document.createElementNS('http://www.w3.org/2000/svg','polyline');
+      const pts = data.map((d,i)=>{
+        const x = (i/(data.length-1))*1000;
+        const y = 280 - ((d.rate-min)/(max-min||1))*260;
+        return `${x},${y}`;
+      }).join(' ');
+      poly.setAttribute('points', pts);
+      poly.setAttribute('fill','none');
+      poly.setAttribute('stroke', getComputedStyle(document.documentElement).getPropertyValue('--primary') || '#007aff');
+      poly.setAttribute('stroke-width','2');
+      svg.appendChild(poly);
+      // area
+      const area = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+      area.setAttribute('points', pts + ' 1000,280 0,280');
+      area.setAttribute('fill', '#007aff');
+      area.setAttribute('opacity','0.08');
+      svg.appendChild(area);
+      // y labels
+      ylabels.innerHTML = `<span>${max.toFixed(1)}</span><span>${(((max+min)/2)||0).toFixed(1)}</span><span>${min.toFixed(1)}</span>`;
+      pointsEl.textContent = `${data.length} data points`;
+    }
+    genChart();
+    setInterval(genChart, 5000);
+
+    // time-range buttons (visual only; no backend yet)
+    document.querySelectorAll('[data-range]').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        document.querySelectorAll('[data-range]').forEach(b=>b.classList.remove('primary'));
+        e.currentTarget.classList.add('primary');
+        timeRange = e.currentTarget.getAttribute('data-range');
+        genChart();
+      });
+    });
+
+  </script>
 </body>
 </html>

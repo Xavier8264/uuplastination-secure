@@ -196,9 +196,18 @@ class StepperController:
 
 
 # --- Singleton controller (env-configurable) -------------------------------
-PIN_STEP = int(os.getenv("STEPPER_PIN_STEP", os.getenv("PIN_STEP", "23")))
-PIN_DIR = int(os.getenv("STEPPER_PIN_DIR", os.getenv("PIN_DIR", "24")))
-PIN_ENABLE = os.getenv("STEPPER_PIN_ENABLE", os.getenv("PIN_ENABLE", "18"))
+# GPIO Pin Configuration (BCM numbering):
+# You can set these via environment variables to match your wiring:
+#   VALVE_PIN_STEP or STEPPER_PIN_STEP - GPIO pin for STEP signal (default: 23)
+#   VALVE_PIN_DIR or STEPPER_PIN_DIR   - GPIO pin for DIR signal (default: 24)
+#   VALVE_PIN_ENABLE or STEPPER_PIN_ENABLE - GPIO pin for ENABLE signal (default: 18, set to -1 to disable)
+#   STEPPER_STEPS_PER_REV - Steps per revolution for your motor (default: 200)
+#   STEPPER_DEFAULT_RPM - Default rotation speed (default: 60)
+#   STEPPER_INVERT_ENABLE - Set to 0 if your driver uses active-high enable (default: 1)
+
+PIN_STEP = int(os.getenv("VALVE_PIN_STEP", os.getenv("STEPPER_PIN_STEP", os.getenv("PIN_STEP", "23"))))
+PIN_DIR = int(os.getenv("VALVE_PIN_DIR", os.getenv("STEPPER_PIN_DIR", os.getenv("PIN_DIR", "24"))))
+PIN_ENABLE = os.getenv("VALVE_PIN_ENABLE", os.getenv("STEPPER_PIN_ENABLE", os.getenv("PIN_ENABLE", "18")))
 PIN_ENABLE_INT: Optional[int] = int(PIN_ENABLE) if PIN_ENABLE not in (None, "", "-1") else None
 STEPS_PER_REV = int(os.getenv("STEPPER_STEPS_PER_REV", "200"))
 DEFAULT_RPM = float(os.getenv("STEPPER_DEFAULT_RPM", "60"))
@@ -285,3 +294,52 @@ def api_close(rpm: Optional[float] = Query(None)) -> Dict[str, object]:
     except RuntimeError as e:
         raise HTTPException(status_code=409, detail=str(e))
     return {"result": "moving-close", "steps": abs(CLOSE_STEPS)}
+
+
+# --- Alternative valve endpoints for frontend compatibility ---
+# These provide a simpler interface with percentage-based position tracking
+
+_valve_router = APIRouter(prefix="/valve", tags=["valve"])
+
+# Track virtual valve position as percentage
+_valve_position = 45  # Start at 45%
+
+
+@_valve_router.post("/open")
+def valve_open() -> Dict[str, object]:
+    """Open valve by 5% (maps to stepper movement)."""
+    global _valve_position
+    _valve_position = min(100, _valve_position + 5)
+    
+    try:
+        # Move stepper forward
+        _controller.step(steps=int(OPEN_STEPS * 0.05), rpm=None, forward=True)
+    except RuntimeError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    
+    return {"result": "opened", "position": _valve_position}
+
+
+@_valve_router.post("/close")
+def valve_close() -> Dict[str, object]:
+    """Close valve by 5% (maps to stepper movement)."""
+    global _valve_position
+    _valve_position = max(0, _valve_position - 5)
+    
+    try:
+        # Move stepper backward
+        _controller.step(steps=int(abs(CLOSE_STEPS) * 0.05), rpm=None, forward=False)
+    except RuntimeError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    
+    return {"result": "closed", "position": _valve_position}
+
+
+@_valve_router.get("/position")
+def valve_position() -> Dict[str, object]:
+    """Get current valve position as percentage."""
+    return {"position": _valve_position}
+
+
+# Include valve router in main router
+router.include_router(_valve_router)

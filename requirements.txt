@@ -1,3 +1,9 @@
 fastapi
 uvicorn[standard]
 psutil
+picamera2
+# RPi.GPIO is usually pre-installed on Raspberry Pi OS
+# If not, uncomment the line below:
+# RPi.GPIO
+python-multipart
+aiofiles
