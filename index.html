@@ -1,606 +1,177 @@
-<!DOCTYPE html><!DOCTYPE html>
-
-<html lang="en" data-theme="dark"><html lang="en">
-
-<head><head>
-
-  <meta charset="UTF-8" />  <meta charset="UTF-8" />
-
-  <meta name="viewport" content="width=device-width, initial-scale=1" />  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <title>Plastination Control — Secure Dashboard</title>  <title>UU Plastination — Secure Dashboard</title>
-
-  <meta name="description" content="Lab control dashboard for the UU Plastination project" />  <meta name="description" content="Private, authenticated dashboard for UU Plastination team." />
-
-    
-
-  <!-- Apple-inspired Design System -->  <!-- Design System -->
-
-  <link rel="stylesheet" href="/assets/styles/design-tokens.css" />  <link rel="stylesheet" href="/assets/styles/design-tokens.css" />
-
-  <link rel="stylesheet" href="/assets/styles/dashboard.css" />  <link rel="stylesheet" href="/assets/styles/dashboard.css" />
-
-</head></head>
-
-<body><body>
-
-  <!-- Sticky Header Bar -->  <!-- Dashboard Header -->
-
-  <header class="header-bar" role="banner">  <header class="dashboard-header" role="banner">
-
-    <div class="header-bar-left">    <div class="header-branding">
-
-      <h1 class="header-title">Plastination Control</h1>      <div class="header-logo" aria-hidden="true"></div>
-
-    </div>      <div class="header-title">
-
-            <h1>UU Plastination</h1>
-
-    <div class="header-bar-center">        <span class="header-subtitle">Secure Dashboard</span>
-
-      <button       </div>
-
-        type="button"     </div>
-
-        id="recording-control"     
-
-        class="recording-control"    <div class="header-controls">
-
-        aria-label="Toggle recording">      <span class="secure-badge">
-
-        <div class="recording-dot-hollow" id="recording-dot"></div>        <span aria-hidden="true">🔒</span>
-
-        <span id="recording-text">Record</span>        Secure
-
-      </button>      </span>
-
-    </div>      <button 
-
-            type="button" 
-
-    <div class="header-bar-right">        id="theme-toggle" 
-
-      <span class="status-badge info" id="user-badge">        class="theme-toggle" 
-
-        <span class="status-dot"></span>        aria-label="Toggle theme"
-
-        <span class="text-mono">Team</span>        title="Toggle light/dark mode (t)">
-
-      </span>        🌙
-
-      <button       </button>
-
-        type="button"     </div>
-
-        id="theme-toggle"   </header>
-
-        class="btn btn-small" 
-
-        aria-label="Toggle theme"  <!-- Main Dashboard -->
-
-        title="Toggle light/dark mode (t)"  <main class="dashboard-container" role="main">
-
-        style="padding: var(--space-2); aspect-ratio: 1;">    
-
-        <span aria-hidden="true">🌙</span>    <!-- Dashboard Grid -->
-
-      </button>    <div class="dashboard-grid">
-
-    </div>      
-
-  </header>      <!-- Live Camera Widget (2×3 columns) -->
-
-      <section class="card span-6 row-span-2" role="region" aria-labelledby="camera-title">
-
-  <!-- Main Dashboard -->        <div class="card-header">
-
-  <main class="dashboard-container" role="main">          <h2 class="card-title" id="camera-title">
-
-                <span aria-hidden="true">📹</span>
-
-    <!-- Dashboard Grid -->            Live Camera
-
-    <div class="dashboard-grid">          </h2>
-
-              </div>
-
-      <!-- Camera Feed (7 cols × 3 rows on xl, full width on md) -->        <div class="card-body">
-
-      <section class="card span-7 row-span-3" role="region" aria-labelledby="camera-title">          <div class="camera-widget" id="camera-widget">
-
-        <div class="card-header">            <img 
-
-          <h2 class="card-title" id="camera-title">              src="/stream.mjpg" 
-
-            <span aria-hidden="true">📹</span>              alt="Live camera stream" 
-
-            Camera Feed              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-
-          </h2>            />
-
-          <div class="camera-toolbar">            <div class="camera-placeholder" style="display: none;">
-
-            <span class="text-mono text-muted" style="font-size: var(--text-sm);" id="camera-resolution">1280×720</span>              <span>📷 Camera stream unavailable</span>
-
-          </div>            </div>
-
-        </div>            <div class="camera-overlay">
-
-        <div class="card-body">              <button type="button" id="camera-fullscreen-btn" class="btn btn-small" style="background: rgba(0,0,0,0.8); color: white; border-color: rgba(255,255,255,0.2);">
-
-          <div class="camera-widget" id="camera-widget">                <span aria-hidden="true">⤢</span> Fullscreen
-
-            <img               </button>
-
-              src="/stream.mjpg"             </div>
-
-              alt="Live camera stream"           </div>
-
-              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"        </div>
-
-            />        <div class="card-footer">
-
-            <div class="camera-placeholder" style="display: none;">          <div style="display: flex; justify-content: space-between; align-items: center;">
-
-              <span>📷 Camera stream unavailable</span>            <span class="text-muted" style="font-size: var(--text-sm);">
-
-            </div>              <span id="fps-value">30</span> FPS · Press <kbd style="padding: 2px 6px; background: var(--bg-secondary); border-radius: 4px; font-family: var(--font-mono); font-size: 12px;">f</kbd> for fullscreen
-
-            <div class="camera-overlay">            </span>
-
-              <div class="camera-info">          </div>
-
-                <span class="live-badge">        </div>
-
-                  <span class="status-dot"></span>      </section>
-
-                  LIVE
-
-                </span>      <!-- Bubble Rate Widget (1×1) -->
-
-                <span class="text-mono"><span id="camera-fps">30</span> fps</span>      <section class="card span-3" role="region" aria-labelledby="bpm-title">
-
-                <span style="color: rgba(255,255,255,0.4);">•</span>        <div class="card-header">
-
-                <span class="text-mono">Latency <span id="camera-latency">120</span> ms</span>          <h2 class="card-title" id="bpm-title">
-
-              </div>            <span aria-hidden="true">🫧</span>
-
-              <button type="button" id="camera-fullscreen-btn" class="btn btn-small" style="background: rgba(0,0,0,0.8); color: white; border-color: rgba(255,255,255,0.2);">            Bubble Rate
-
-                <span aria-hidden="true">⤢</span> Fullscreen          </h2>
-
-              </button>        </div>
-
-            </div>        <div class="card-body">
-
-          </div>          <div class="metric">
-
-        </div>            <div class="metric-value">
-
-      </section>              <span id="bubble-rate-value">72</span>
-
-              <span class="unit">BPM</span>
-
-      <!-- Bubble Rate Chart (5 cols × 2 rows on xl) -->            </div>
-
-      <section class="card span-5 row-span-2" role="region" aria-labelledby="chart-title">            <div class="metric-delta up" id="bubble-rate-delta" aria-live="polite">
-
-        <div class="card-header">              ▲ +4 vs last min
-
-          <h2 class="card-title" id="chart-title">            </div>
-
-            <span aria-hidden="true">📈</span>          </div>
-
-            Bubble Rate        </div>
-
-          </h2>      </section>
-
-          <div class="chart-controls">
-
-            <button type="button" class="chart-chip active" data-range="15m">15m</button>      <!-- AI Status Widget (1×1) -->
-
-            <button type="button" class="chart-chip" data-range="1h">1h</button>      <section class="card span-3" role="region" aria-labelledby="ai-title">
-
-            <button type="button" class="chart-chip" data-range="6h">6h</button>        <div class="card-header">
-
-            <button type="button" class="chart-chip" data-range="24h">24h</button>          <h2 class="card-title" id="ai-title">
-
-          </div>            <span aria-hidden="true">🤖</span>
-
-        </div>            AI Status
-
-        <div class="card-body">          </h2>
-
-          <div class="chart-container" id="bubble-chart">        </div>
-
-            <!-- Chart will be rendered here via JavaScript / Canvas -->        <div class="card-body" style="gap: var(--space-3);">
-
-            <canvas id="bubble-chart-canvas" style="width: 100%; height: 100%;"></canvas>          <div>
-
-          </div>            <span class="status-badge warning" id="ai-status-badge">
-
-        </div>              <span class="status-dot"></span>
-
-      </section>              Idle
-
-            </span>
-
-      <!-- Current Bubble Rate (5 cols × 1 row on xl) -->          </div>
-
-      <section class="card span-5" role="region" aria-labelledby="bpm-title">          <div style="font-size: var(--text-sm);">
-
-        <div class="card-header">            <div style="color: var(--text-secondary); margin-bottom: var(--space-1);">Model</div>
-
-          <h2 class="card-title" id="bpm-title">            <div style="font-weight: var(--font-semibold); font-family: var(--font-mono);" id="ai-model-name">YOLOv8n</div>
-
-            <span aria-hidden="true">🫧</span>          </div>
-
-            Current Bubble Rate          <div style="font-size: var(--text-sm);">
-
-          </h2>            <div style="color: var(--text-secondary); margin-bottom: var(--space-1);">Last Updated</div>
-
-        </div>            <div style="font-family: var(--font-mono); font-size: var(--text-sm);" id="ai-last-updated">--:--:--</div>
-
-        <div class="card-body">          </div>
-
-          <div class="metric">        </div>
-
-            <div class="metric-value">      </section>
-
-              <span id="bubble-rate-value">72</span>
-
-              <span class="unit">BPM</span>      <!-- Valve Control Widget (2×1) -->
-
-            </div>      <section class="card span-6" role="region" aria-labelledby="valve-title">
-
-            <div class="metric-delta up" id="bubble-rate-delta" aria-live="polite">        <div class="card-header">
-
-              ▲ +1.6 vs 5min avg          <h2 class="card-title" id="valve-title">
-
-            </div>            <span aria-hidden="true">🦾</span>
-
-          </div>            Valve Control
-
-        </div>          </h2>
-
-      </section>          <span class="text-muted text-mono" style="font-size: var(--text-sm);">
-
-            Position: <span id="stepper-position">0</span> steps
-
-      <!-- Valve Control (6 cols on xl, 3 on md) -->          </span>
-
-      <section class="card span-6" role="region" aria-labelledby="valve-title">        </div>
-
-        <div class="card-header">        <div class="card-body">
-
-          <h2 class="card-title" id="valve-title">          <div class="slider-control">
-
-            <span aria-hidden="true">🦾</span>            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2);">
-
-            Valve Control              <span class="text-muted" style="font-size: var(--text-sm);" id="stepper-status-text">Ready</span>
-
-          </h2>              <span class="slider-value" id="stepper-slider-value">50</span>
-
-          <span class="text-muted text-mono" style="font-size: var(--text-sm);">            </div>
-
-            <span id="valve-status-text">Ready</span>            <div class="slider-track">
-
-          </span>              <div class="slider-fill" style="width: 50%;"></div>
-
-        </div>              <input 
-
-        <div class="card-body">                type="range" 
-
-          <div class="valve-control">                id="stepper-slider"
-
-            <div class="position-value">                class="slider-input" 
-
-              <span id="valve-position">50</span><span class="text-muted">%</span>                min="0" 
-
-            </div>                max="100" 
-
-            <div class="position-bar">                value="50"
-
-              <div class="position-fill" id="valve-position-fill" style="width: 50%;"></div>                aria-label="Valve position"
-
-            </div>              />
-
-            <div class="position-label">            </div>
-
-              <span>Closed</span>          </div>
-
-              <span>Open</span>          <div class="btn-group" style="margin-top: var(--space-4);">
-
-            </div>            <button type="button" id="stepper-enable" class="btn btn-primary">
-
-          </div>              <span aria-hidden="true">▶️</span> Enable
-
-          <div class="btn-group" style="margin-top: var(--space-4);">            </button>
-
-            <button type="button" id="valve-minus" class="btn">            <button type="button" id="stepper-disable" class="btn">
-
-              <span aria-hidden="true">−</span>              <span aria-hidden="true">⏸️</span> Disable
-
-            </button>            </button>
-
-            <button type="button" id="valve-enable" class="btn btn-primary">            <button type="button" id="stepper-open" class="btn">
-
-              Enable              <span aria-hidden="true">⬆️</span> Open
-
-            </button>            </button>
-
-            <button type="button" id="valve-disable" class="btn">            <button type="button" id="stepper-close" class="btn">
-
-              Disable              <span aria-hidden="true">⬇️</span> Close
-
-            </button>            </button>
-
-            <button type="button" id="valve-plus" class="btn">            <button type="button" id="stepper-abort" class="btn" style="border-color: var(--error); color: var(--error);">
-
-              <span aria-hidden="true">+</span>              <span aria-hidden="true">⛔</span> Abort
-
-            </button>            </button>
-
-            <button type="button" id="valve-abort" class="btn btn-danger" title="Emergency stop">          </div>
-
-              <span aria-hidden="true">⛔</span> Abort          <div id="stepper-message" class="text-muted" style="margin-top: var(--space-3); font-size: var(--text-sm); min-height: 20px;"></div>
-
-            </button>        </div>
-
-          </div>      </section>
-
-          <div class="btn-group" style="margin-top: var(--space-2);">
-
-            <button type="button" id="valve-open" class="btn">      <!-- System Alerts Widget (1×1) -->
-
-              <span aria-hidden="true">⬆️</span> Open      <section class="card span-3" role="region" aria-labelledby="alerts-title">
-
-            </button>        <div class="card-header">
-
-            <button type="button" id="valve-close" class="btn">          <h2 class="card-title" id="alerts-title">
-
-              <span aria-hidden="true">⬇️</span> Close            <span aria-hidden="true">⚠️</span>
-
-            </button>            System Alerts
-
-          </div>          </h2>
-
-          <div id="valve-message" class="text-muted" style="margin-top: var(--space-3); font-size: var(--text-sm); min-height: 20px;"></div>        </div>
-
-        </div>        <div class="card-body">
-
-      </section>          <div class="alert-list" id="alerts-list">
-
-            <div class="empty-state" style="padding: var(--space-6);">
-
-      <!-- System Status (6 cols on xl, 3 on md) -->              <div class="empty-state-icon">✓</div>
-
-      <section class="card span-6" role="region" aria-labelledby="status-title">              <div class="empty-state-message">No alerts</div>
-
-        <div class="card-header">            </div>
-
-          <h2 class="card-title" id="status-title">          </div>
-
-            <span aria-hidden="true">💻</span>        </div>
-
-            System Status      </section>
-
-          </h2>
-
-        </div>      <!-- Quick Actions Widget (1×1) -->
-
-        <div class="card-body">      <section class="card span-3" role="region" aria-labelledby="actions-title">
-
-          <div class="status-list">        <div class="card-header">
-
-            <div class="status-row">          <h2 class="card-title" id="actions-title">
-
-              <span class="status-icon" aria-hidden="true">🌡️</span>            <span aria-hidden="true">⚡</span>
-
-              <div class="status-content">            Quick Actions
-
-                <div class="status-name">CPU Temp</div>          </h2>
-
-                <div class="status-value"><span id="cpu-temp">45.2</span>°C</div>        </div>
-
-              </div>        <div class="card-body">
-
-            </div>          <div class="btn-group" style="flex-direction: column;">
-
-                        <button type="button" class="btn btn-large" onclick="alert('Start stream feature coming soon')">
-
-            <div class="status-row">              <span aria-hidden="true">▶️</span> Start Stream
-
-              <span class="status-icon" aria-hidden="true">💻</span>            </button>
-
-              <div class="status-content">            <button type="button" class="btn btn-large" onclick="alert('Restart AI feature coming soon')">
-
-                <div class="status-name">CPU Usage</div>              <span aria-hidden="true">🔄</span> Restart AI
-
-                <div class="status-value"><span id="cpu-usage">35.4</span>%</div>            </button>
-
-              </div>            <button type="button" class="btn btn-large" onclick="alert('Snapshot feature coming soon')">
-
-            </div>              <span aria-hidden="true">📸</span> Snapshot
-
-                        </button>
-
-            <div class="status-row">            <a href="#logs" class="btn btn-large">
-
-              <span class="status-icon" aria-hidden="true">🧠</span>              <span aria-hidden="true">📋</span> View Logs
-
-              <div class="status-content">            </a>
-
-                <div class="status-name">Memory</div>          </div>
-
-                <div class="status-value"><span id="memory-usage">2.1</span> / 4 GB</div>        </div>
-
-              </div>      </section>
-
-            </div>
-
-                  <!-- Logs Widget (3×2) -->
-
-            <div class="status-row">      <section class="card span-6 row-span-2" role="region" aria-labelledby="logs-title" id="logs">
-
-              <span class="status-icon" aria-hidden="true">📹</span>        <div class="card-header">
-
-              <div class="status-content">          <h2 class="card-title" id="logs-title">
-
-                <div class="status-name">Camera</div>            <span aria-hidden="true">📋</span>
-
-                <div class="status-value" id="camera-service">Active</div>            System Logs
-
-              </div>          </h2>
-
-            </div>          <a href="#" class="btn btn-small" onclick="alert('View all logs feature coming soon'); return false;">View All</a>
-
-                    </div>
-
-            <div class="status-row">        <div class="card-body">
-
-              <span class="status-icon" aria-hidden="true">🦾</span>          <div class="log-list" id="logs-container">
-
-              <div class="status-content">            <!-- Logs will be populated by JavaScript -->
-
-                <div class="status-name">Stepper</div>          </div>
-
-                <div class="status-value" id="stepper-service">Active</div>        </div>
-
-              </div>      </section>
-
-            </div>
-
-                  <!-- CPU Temperature Tile (1×1) -->
-
-            <div class="status-row">      <section class="card span-2" role="region" aria-labelledby="cpu-temp-title">
-
-              <span class="status-icon" aria-hidden="true">🌐</span>        <div class="stat-tile">
-
-              <div class="status-content">          <div class="stat-icon" aria-hidden="true">🌡️</div>
-
-                <div class="status-name">API Health</div>          <div class="stat-label" id="cpu-temp-title">CPU Temp</div>
-
-                <div class="status-value" id="api-health">OK</div>          <div class="stat-value">
-
-              </div>            <span id="cpu-temp-value">45.2</span>°C
-
-            </div>          </div>
-
-                    </div>
-
-            <div class="status-row">      </section>
-
-              <span class="status-icon" aria-hidden="true">🔌</span>
-
-              <div class="status-content">      <!-- FPS Tile (1×1) -->
-
-                <div class="status-name">Stream</div>      <section class="card span-2" role="region" aria-labelledby="fps-title">
-
-                <div class="status-value" id="stream-status">OK</div>        <div class="stat-tile">
-
-              </div>          <div class="stat-icon" aria-hidden="true">🎬</div>
-
-            </div>          <div class="stat-label" id="fps-title">Frame Rate</div>
-
-                      <div class="stat-value">
-
-            <div class="status-row">            <span id="fps-value-alt">30</span> FPS
-
-              <span class="status-icon" aria-hidden="true">⏱️</span>          </div>
-
-              <div class="status-content">        </div>
-
-                <div class="status-name">Uptime</div>      </section>
-
-                <div class="status-value" id="uptime">5d 14h</div>
-
-              </div>      <!-- Uptime Tile (1×1) -->
-
-            </div>      <section class="card span-2" role="region" aria-labelledby="uptime-title">
-
-          </div>        <div class="stat-tile">
-
-        </div>          <div class="stat-icon" aria-hidden="true">⏱️</div>
-
-      </section>          <div class="stat-label" id="uptime-title">Uptime</div>
-
-          <div class="stat-value" style="font-size: var(--text-xl);" id="uptime-value">
-
-      <!-- Alerts / Events (6 cols on xl, full on md) -->            5d 14h
-
-      <section class="card span-6" role="region" aria-labelledby="alerts-title">          </div>
-
-        <div class="card-header">        </div>
-
-          <h2 class="card-title" id="alerts-title">      </section>
-
-            <span aria-hidden="true">⚠️</span>
-
-            System Alerts      <!-- CPU Usage Tile (1×1) -->
-
-          </h2>      <section class="card span-2" role="region" aria-labelledby="cpu-usage-title">
-
-          <button type="button" class="btn btn-small">        <div class="stat-tile">
-
-            Clear All          <div class="stat-icon" aria-hidden="true">💻</div>
-
-          </button>          <div class="stat-label" id="cpu-usage-title">CPU Usage</div>
-
-        </div>          <div class="stat-value">
-
-        <div class="card-body">            <span id="cpu-usage-value">45.3</span>%
-
-          <div class="alerts-list" id="alerts-container">          </div>
-
-            <!-- Alerts will be populated by JavaScript -->        </div>
-
-            <div class="empty-state" style="padding: var(--space-8);">      </section>
-
-              <div class="empty-state-icon">✓</div>
-
-              <div class="empty-state-title">All Clear</div>      <!-- Memory Usage Tile (1×1) -->
-
-              <div class="empty-state-message">No active alerts or warnings</div>      <section class="card span-2" role="region" aria-labelledby="mem-title">
-
-            </div>        <div class="stat-tile">
-
-          </div>          <div class="stat-icon" aria-hidden="true">🧠</div>
-
-        </div>          <div class="stat-label" id="mem-title">Memory</div>
-
-      </section>          <div class="stat-value" style="font-size: var(--text-xl);">
-
-            2.1 / 4 GB
-
-    </div>          </div>
-
-  </main>        </div>
-
-      </section>
-
-  <!-- Dashboard JavaScript -->
-
-  <script src="/assets/js/dashboard.js"></script>      <!-- Network Status Tile (1×1) -->
-
-</body>      <section class="card span-2" role="region" aria-labelledby="net-title">
-
-</html>        <div class="stat-tile">
-
-          <div class="stat-icon" aria-hidden="true">🌐</div>
-          <div class="stat-label" id="net-title">Network</div>
-          <div class="status-badge success" style="margin-top: var(--space-2);">
-            <span class="status-dot"></span>
-            Online
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UU Plastination — Secure Dashboard</title>
+  <meta name="description" content="Private, authenticated dashboard for UU Plastination team." />
+  <link rel="stylesheet" href="/assets/styles/design-tokens.css" />
+  <link rel="stylesheet" href="/assets/styles/dashboard.css" />
+</head>
+<body>
+  <header class="header-bar" role="banner">
+    <div class="header-bar-left">
+      <h1 class="header-title">UU Plastination</h1>
+      <span class="header-subtitle">Secure Dashboard</span>
+    </div>
+    <div class="header-bar-center"></div>
+    <div class="header-bar-right">
+      <button type="button" id="recording-control" class="recording-control" aria-label="Toggle recording">
+        <div class="recording-dot-hollow" id="recording-dot"></div>
+        <span id="recording-text">Record</span>
+      </button>
+      <button type="button" id="theme-toggle" class="btn btn-small" aria-label="Toggle theme" title="Toggle light/dark mode (t)">
+        <span aria-hidden="true">🌙</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="dashboard-container" role="main">
+    <div class="dashboard-layout">
+      <div class="column-stack primary-column">
+        <section class="card" role="region" aria-labelledby="valve-title">
+          <div class="card-header">
+            <h2 class="card-title" id="valve-title"><span aria-hidden="true">🦾</span> Valve Control</h2>
+            <span class="text-mono" id="valve-status-text">Ready</span>
           </div>
-        </div>
-      </section>
+          <div class="card-body">
+            <div class="slider-control">
+              <div class="slider-meta">
+                <span class="text-muted">Position</span>
+                <span class="slider-value text-mono"><span id="stepper-slider-value">50</span>%</span>
+              </div>
+              <div class="slider-track">
+                <div class="slider-fill" id="valve-position-fill" style="width: 50%;"></div>
+                <input type="range" id="stepper-slider" class="slider-input" min="0" max="100" value="50" aria-label="Valve position" />
+              </div>
+              <div class="slider-labels text-muted">
+                <span>Closed</span>
+                <span>Open</span>
+              </div>
+            </div>
+            <div class="position-readout text-mono">
+              <span>Stepper: <span id="valve-position">50</span>%</span>
+              <span>Steps: <span id="stepper-position">0</span></span>
+            </div>
+            <div class="btn-group">
+              <button type="button" id="stepper-enable" class="btn btn-primary"><span aria-hidden="true">▶️</span> Enable</button>
+              <button type="button" id="stepper-disable" class="btn"><span aria-hidden="true">⏸️</span> Disable</button>
+              <button type="button" id="stepper-open" class="btn"><span aria-hidden="true">⬆️</span> Open</button>
+              <button type="button" id="stepper-close" class="btn"><span aria-hidden="true">⬇️</span> Close</button>
+              <button type="button" id="stepper-abort" class="btn btn-danger"><span aria-hidden="true">⛔</span> Abort</button>
+            </div>
+            <p class="text-muted" id="stepper-message"></p>
+          </div>
+        </section>
 
+        <section class="card" role="region" aria-labelledby="camera-title">
+          <div class="card-header">
+            <h2 class="card-title" id="camera-title"><span aria-hidden="true">📹</span> Live Camera</h2>
+            <div class="camera-meta text-mono">
+              <span id="camera-resolution">1280×720</span>
+              <span>·</span>
+              <span id="fps-value">30</span> FPS
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="camera-feed" id="camera-widget">
+              <img src="/stream.mjpg" alt="Live camera stream" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+              <div class="camera-placeholder" role="status" aria-live="polite">
+                <span aria-hidden="true">📷</span>
+                <p>Camera stream unavailable</p>
+              </div>
+              <button type="button" id="camera-fullscreen-btn" class="btn btn-small camera-fullscreen">
+                <span aria-hidden="true">⤢</span>
+                <span>Fullscreen</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" role="region" aria-labelledby="history-title">
+          <div class="card-header">
+            <h2 class="card-title" id="history-title"><span aria-hidden="true">📈</span> Bubble Rate History</h2>
+            <div class="chart-controls" role="group" aria-label="Chart time range">
+              <button type="button" class="chart-chip active" data-range="15m">15m</button>
+              <button type="button" class="chart-chip" data-range="1h">1h</button>
+              <button type="button" class="chart-chip" data-range="6h">6h</button>
+              <button type="button" class="chart-chip" data-range="24h">24h</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="bubble-chart-canvas"></canvas>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="column-stack secondary-column" aria-label="System widgets">
+        <section class="card" role="region" aria-labelledby="bubble-stats-title">
+          <div class="card-header">
+            <h2 class="card-title" id="bubble-stats-title"><span aria-hidden="true">🫧</span> Bubble Rate</h2>
+            <span class="metric-delta up" id="bubble-rate-delta">▲ +0.0 vs 5min avg</span>
+          </div>
+          <div class="card-body bubble-stats">
+            <div class="metric">
+              <div class="metric-value">
+                <span id="bubble-rate-value">72</span>
+                <span class="unit">BPM</span>
+              </div>
+              <p class="text-muted">Current bubble rate</p>
+            </div>
+            <dl class="metric-breakdown">
+              <div class="metric-row">
+                <dt>Last minute avg</dt>
+                <dd id="bubble-last-minute">-- bpm</dd>
+              </div>
+              <div class="metric-row">
+                <dt>Peak (24h)</dt>
+                <dd id="bubble-peak">-- bpm</dd>
+              </div>
+              <div class="metric-row">
+                <dt>Floor (24h)</dt>
+                <dd id="bubble-floor">-- bpm</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+
+        <section class="card" role="region" aria-labelledby="pi-stats-title">
+          <div class="card-header">
+            <h2 class="card-title" id="pi-stats-title"><span aria-hidden="true">🍓</span> Pi Stats</h2>
+          </div>
+          <div class="card-body pi-stats">
+            <div class="pi-stat-row">
+              <span>CPU Temp</span>
+              <span class="text-mono"><span id="cpu-temp">45.2</span>°C</span>
+            </div>
+            <div class="pi-stat-row">
+              <span>CPU Usage</span>
+              <span class="text-mono"><span id="cpu-usage">35.4</span>%</span>
+            </div>
+            <div class="pi-stat-row">
+              <span>Memory</span>
+              <span class="text-mono" id="memory-usage">2.1 / 4 GB</span>
+            </div>
+            <div class="pi-stat-row">
+              <span>Uptime</span>
+              <span class="text-mono" id="uptime">5d 14h</span>
+            </div>
+            <div class="pi-stat-row">
+              <span>Camera</span>
+              <span class="text-mono" id="camera-service">Active</span>
+            </div>
+            <div class="pi-stat-row">
+              <span>Stepper</span>
+              <span class="text-mono" id="stepper-service">Active</span>
+            </div>
+          </div>
+        </section>
+      </aside>
     </div>
   </main>
 
-  <!-- Dashboard JavaScript -->
   <script src="/assets/js/dashboard.js"></script>
 </body>
 </html>
