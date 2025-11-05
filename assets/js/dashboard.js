@@ -568,11 +568,16 @@ class DataManager {
 class ValveController {
   constructor() {
     this.baseUrl = '/api/stepper';
+    this.slider = document.getElementById('stepper-slider');
+    this.sliderValueEl = document.getElementById('stepper-slider-value');
+    this.fillEl = document.getElementById('valve-position-fill');
+    this.positionEl = document.getElementById('valve-position');
     this.bindButtons();
+    this.bindSlider();
   }
 
   async sendCommand(endpoint, options = {}) {
-    const messageEl = document.getElementById('valve-message');
+    const messageEl = document.getElementById('stepper-message');
     
     try {
       if (MOCK_DATA) {
@@ -615,13 +620,11 @@ class ValveController {
 
   bindButtons() {
     const buttons = {
-      'valve-enable': () => this.sendCommand('/enable'),
-      'valve-disable': () => this.sendCommand('/disable'),
-      'valve-open': () => this.sendCommand('/open'),
-      'valve-close': () => this.sendCommand('/close'),
-      'valve-abort': () => this.sendCommand('/abort'),
-      'valve-plus': () => this.sendCommand('/step?steps=10'),
-      'valve-minus': () => this.sendCommand('/step?steps=-10'),
+      'stepper-enable': () => this.sendCommand('/enable'),
+      'stepper-disable': () => this.sendCommand('/disable'),
+      'stepper-open': () => this.sendCommand('/open'),
+      'stepper-close': () => this.sendCommand('/close'),
+      'stepper-abort': () => this.sendCommand('/abort'),
     };
 
     Object.entries(buttons).forEach(([id, handler]) => {
@@ -639,6 +642,39 @@ class ValveController {
             }, 500);
           }
         });
+      }
+    });
+  }
+
+  bindSlider() {
+    if (!this.slider) return;
+
+    const updateVisuals = (value) => {
+      if (this.sliderValueEl) {
+        this.sliderValueEl.textContent = value;
+      }
+
+      if (this.fillEl) {
+        this.fillEl.style.width = `${value}%`;
+      }
+
+      if (this.positionEl) {
+        this.positionEl.textContent = value;
+      }
+    };
+
+    updateVisuals(this.slider.value);
+
+    this.slider.addEventListener('input', (event) => {
+      updateVisuals(event.target.value);
+    });
+
+    this.slider.addEventListener('change', async (event) => {
+      const value = event.target.value;
+      try {
+        await this.sendCommand(`/set?percent=${value}`);
+      } catch (error) {
+        console.error('Error sending slider command:', error);
       }
     });
   }
