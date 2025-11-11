@@ -12,7 +12,8 @@ router = APIRouter(prefix="/webrtc", tags=["webrtc"])
 
 
 # Helpers to read env with defaults
-LIVEKIT_HOST = os.getenv("LIVEKIT_HOST", "http://localhost:7880")
+# Prefer an HTTPS or proxy path to avoid mixed-content from HTTPS pages
+LIVEKIT_HOST = os.getenv("LIVEKIT_HOST", "")
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
 # Comma-separated list like: "stun:stun.l.google.com:19302,turns:turn.example.com:5349?transport=tcp"
@@ -57,8 +58,12 @@ def _build_access_token(identity: str, room: str, can_publish: bool = False) -> 
 
 @router.get("/config")
 def get_config() -> Dict[str, Any]:
+    host = LIVEKIT_HOST.strip()
+    # If not configured, or clearly local/http, suggest proxied path "/livekit"
+    if not host or host.startswith("http://localhost") or host.startswith("http://127.0.0.1"):
+        host = "/livekit"
     return {
-        "host": LIVEKIT_HOST,
+        "host": host,
         "iceServers": _ice_servers(),
     }
 

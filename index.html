@@ -63,6 +63,11 @@
 
     /* camera */
     .camera-wrap{position:relative; aspect-ratio:16/9; background:#f0f0f0; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
+    /* Fallback for browsers without aspect-ratio support */
+    @supports not (aspect-ratio: 16/9) {
+      .camera-wrap::before{content:""; display:block; padding-top:56.25%;}
+      .camera-wrap > *{position:absolute; inset:0}
+    }
     .camera-wrap img, .camera-wrap video, .camera-wrap canvas{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
     .badge{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:12px; font-size:11px; border:1px solid var(--border); background:var(--panel); font-weight:500; backdrop-filter: blur(10px)}
     .badge.success{background:rgba(48, 209, 88, 0.1); color:var(--success); border-color:rgba(48, 209, 88, 0.2)}
@@ -113,7 +118,7 @@
           <div class="body">
             <div class="camera-wrap">
               <!-- MJPEG fallback stream -->
-              <img id="cam" alt="Camera stream" src="/camera/stream.mjpg" onerror="this.dataset.err=1;document.getElementById('cam-status').textContent='Disconnected';document.getElementById('cam-status').className='badge warn'" style="display:block">
+              <img id="cam" alt="Camera stream" src="/camera/stream.mjpg" onload="if(!window._webrtcActive){const s=document.getElementById('cam-status');s.textContent='● MJPEG';s.className='badge';}" onerror="this.dataset.err=1;document.getElementById('cam-status').textContent='Disconnected';document.getElementById('cam-status').className='badge warn'" style="display:block">
               <!-- WebRTC live video element (hidden until connected) -->
               <video id="webrtcVideo" autoplay playsinline muted style="display:none"></video>
               <!-- Lightweight overlay canvas for future detections -->
@@ -463,6 +468,7 @@
               imgEl.style.display='none';
               statusEl.textContent='● WebRTC';
               statusEl.className='badge success';
+              window._webrtcActive = true;
               haveVideo = true;
             }
           });
@@ -470,8 +476,9 @@
             // Restore MJPEG on disconnect
             videoEl.style.display='none';
             imgEl.style.display='block';
-            statusEl.textContent='Disconnected';
-            statusEl.className='badge warn';
+            statusEl.textContent='● MJPEG';
+            statusEl.className='badge';
+            window._webrtcActive = false;
             scheduleRetry();
           });
 
