@@ -8,3 +8,4 @@ picamera2
 python-multipart
 aiofiles
 PyJWT
+livekit-api
