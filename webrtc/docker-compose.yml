@@ -15,14 +15,14 @@ services:
     env_file:
       - ../.env
     environment:
-      - LIVEKIT_LISTEN_WS=:7880
-      - LIVEKIT_LISTEN_HTTP=:7880
-      - LIVEKIT_KEYS=${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}
-      - LIVEKIT_PORT_RANGE_START=50000
-      - LIVEKIT_PORT_RANGE_END=50050
-      - LIVEKIT_LOG_LEVEL=info
-      - LIVEKIT_ICE_SERVERS=${LIVEKIT_ICE_SERVERS}
-      - LIVEKIT_USE_EXTERNAL_IP=true
+      LIVEKIT_LISTEN_WS: ":7880"
+      LIVEKIT_LISTEN_HTTP: ":7880"
+      # LiveKit expects "key: secret" format with colon and space
+      LIVEKIT_KEYS: "devkey: devsecret"
+      LIVEKIT_PORT_RANGE_START: "50000"
+      LIVEKIT_PORT_RANGE_END: "50050"
+      LIVEKIT_LOG_LEVEL: "info"
+      LIVEKIT_USE_EXTERNAL_IP: "true"
     network_mode: host
     # If you cannot use host networking, map ports explicitly instead:
     # ports:
@@ -33,50 +33,50 @@ services:
     image: livekit/ingress:latest
     container_name: livekit-ingress
     restart: unless-stopped
-    env_file:
-      - ../.env
     environment:
-      - LIVEKIT_HOST=${LIVEKIT_HOST}
-      - INGRESS_API_KEY=${LIVEKIT_API_KEY}
-      - INGRESS_API_SECRET=${LIVEKIT_API_SECRET}
-      - INGRESS_LOG_LEVEL=info
+      INGRESS_LIVEKIT_URL: "ws://127.0.0.1:7880"
+      INGRESS_API_KEY: "devkey"
+      INGRESS_API_SECRET: "devsecret"
+      INGRESS_LOG_LEVEL: "info"
+      INGRESS_RTMP_PORT: "1935"
+      INGRESS_HTTP_RELAY_PORT: "9090"
     network_mode: host
     # If not using host networking:
     # ports:
     #   - "1935:1935" # RTMP
     #   - "8080:8080" # HTTP control
 
-  coturn:
-    image: instrumentisto/coturn:4.5
-    container_name: coturn
-    restart: unless-stopped
-    env_file:
-      - ../.env
-    command: >-
-      -n --log-file=stdout
-      --realm=${TURN_REALM}
-      --cert=/certs/fullchain.pem
-      --pkey=/certs/privkey.pem
-      --no-cli
-      --no-tlsv1 --no-tlsv1_1
-      --cipher-list="TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256"
-      --use-auth-secret
-      --static-auth-secret=${TURN_STATIC_SECRET}
-      --user-quota=12 --total-quota=1200
-      --no-tcp-relay
-      --stale-nonce=600
-      --fingerprint
-      --no-multicast-peers
-      --no-sslv2 --no-sslv3
-      --min-port=30000 --max-port=30050
-      --external-ip=${TURN_EXTERNAL_IP}
-      --listening-port=3478
-      --tls-listening-port=5349
-    network_mode: host
-    volumes:
-      - type: bind
-        source: ${TURN_CERT_DIR}
-        target: /certs
+  # coturn:
+  #   image: instrumentisto/coturn:4.5
+  #   container_name: coturn
+  #   restart: unless-stopped
+  #   env_file:
+  #     - ../.env
+  #   command: >-
+  #     -n --log-file=stdout
+  #     --realm=${TURN_REALM}
+  #     --cert=/certs/fullchain.pem
+  #     --pkey=/certs/privkey.pem
+  #     --no-cli
+  #     --no-tlsv1 --no-tlsv1_1
+  #     --cipher-list="TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256"
+  #     --use-auth-secret
+  #     --static-auth-secret=${TURN_STATIC_SECRET}
+  #     --user-quota=12 --total-quota=1200
+  #     --no-tcp-relay
+  #     --stale-nonce=600
+  #     --fingerprint
+  #     --no-multicast-peers
+  #     --no-sslv2 --no-sslv3
+  #     --min-port=30000 --max-port=30050
+  #     --external-ip=${TURN_EXTERNAL_IP}
+  #     --listening-port=3478
+  #     --tls-listening-port=5349
+  #   network_mode: host
+  #   volumes:
+  #     - type: bind
+  #       source: ${TURN_CERT_DIR}
+  #       target: /certs
     # If you cannot use host networking:
     # ports:
     #   - "3478:3478/udp"

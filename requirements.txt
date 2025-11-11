@@ -1,6 +1,7 @@
 fastapi
 uvicorn[standard]
 psutil
+python-dotenv
 # picamera2 requires Raspberry Pi OS packages (libcamera) and libcap dev headers.
 # Install it directly on the Pi via apt/pip following Raspberry Pi docs, not in generic builds.
 # picamera2

@@ -4,12 +4,18 @@ import os
 import time
 import uuid
 from typing import Any, Dict, List, Optional
+from pathlib import Path
 
 import jwt
 import json
 import socket
 import urllib.request
 from fastapi import APIRouter, HTTPException, Query
+
+# Load environment variables early
+from dotenv import load_dotenv
+project_root = Path(__file__).parent.parent.parent
+load_dotenv(project_root / ".env")
 
 router = APIRouter(prefix="/webrtc", tags=["webrtc"])
 

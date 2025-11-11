@@ -1,4 +1,5 @@
 from pathlib import Path
+from dotenv import load_dotenv
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
@@ -8,6 +9,10 @@ from .routers.camera import router as camera_router
 from .routers.stats import router as stats_router
 from .routers.stepper import router as stepper_router
 from .routers.webrtc import router as webrtc_router
+
+# Load environment variables from .env file
+project_root = Path(__file__).parent.parent
+load_dotenv(project_root / ".env")
 
 
 def create_app() -> FastAPI:
