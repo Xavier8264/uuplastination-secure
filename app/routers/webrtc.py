@@ -18,6 +18,7 @@ LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
 # Comma-separated list like: "stun:stun.l.google.com:19302,turns:turn.example.com:5349?transport=tcp"
 LIVEKIT_ICE_SERVERS_RAW = os.getenv("LIVEKIT_ICE_SERVERS", "")
+WEBRTC_DISABLE = os.getenv("WEBRTC_DISABLE", "0") not in ("0", "false", "False", "")
 
 
 def _ice_servers() -> List[Dict[str, Any]]:
@@ -59,12 +60,13 @@ def _build_access_token(identity: str, room: str, can_publish: bool = False) -> 
 @router.get("/config")
 def get_config() -> Dict[str, Any]:
     host = LIVEKIT_HOST.strip()
-    # If not configured, or clearly local/http, suggest proxied path "/livekit"
+    # If not configured, or clearly local/http, use proxied path "/livekit" and let frontend prefix origin
     if not host or host.startswith("http://localhost") or host.startswith("http://127.0.0.1"):
         host = "/livekit"
     return {
         "host": host,
         "iceServers": _ice_servers(),
+        "disabled": WEBRTC_DISABLE,
     }
 
 

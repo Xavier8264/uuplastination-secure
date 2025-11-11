@@ -453,7 +453,20 @@
           const cfgResp = await fetch('/webrtc/config', {cache:'no-store'});
           if(!cfgResp.ok) throw new Error('config http '+cfgResp.status);
           const cfg = await cfgResp.json();
+          if(cfg.disabled){
+            // WebRTC disabled by server-side flag; keep MJPEG
+            window._webrtcActive = false;
+            videoEl.style.display='none';
+            imgEl.style.display='block';
+            statusEl.textContent='● MJPEG';
+            statusEl.className='badge';
+            return;
+          }
           if(!cfg.host){ throw new Error('Missing host in /webrtc/config'); }
+          let host = cfg.host;
+          if(typeof host === 'string' && !/^https?:\/\//i.test(host)){
+            host = window.location.origin.replace(/\/$/, '') + (host.startsWith('/') ? host : ('/'+host));
+          }
           const tokenResp = await fetch('/webrtc/token?room=plastination&role=viewer', {cache:'no-store'});
           if(!tokenResp.ok) throw new Error('token http '+tokenResp.status);
           const { token } = await tokenResp.json();
@@ -482,7 +495,7 @@
             scheduleRetry();
           });
 
-          await room.connect(cfg.host, token);
+          await room.connect(host, token);
           // If no video appears within 4s, keep MJPEG visible and schedule retry
           setTimeout(()=>{ if(!haveVideo){ scheduleRetry(); } }, 4000);
         }catch(err){
@@ -501,6 +514,24 @@
       }
 
       tryConnect();
+
+      // Periodic camera status poll to keep badge accurate when on MJPEG
+      async function pollCamera(){
+        try{
+          const r = await fetch('/camera/status', {cache:'no-store'});
+          if(!r.ok) return;
+          const s = await r.json();
+          if(window._webrtcActive) return; // don't override when WebRTC is active
+          if(s && s.available){
+            statusEl.textContent = s.running ? '● MJPEG' : 'Standby';
+            statusEl.className = s.running ? 'badge' : 'badge warn';
+          }else{
+            statusEl.textContent = 'Disconnected';
+            statusEl.className = 'badge warn';
+          }
+        }catch(_){/* ignore */}
+      }
+      setInterval(pollCamera, 5000);
     })();
   </script>
 </body>
