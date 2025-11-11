@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv
+
+# Environment files
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# LiveKit generated files
+webrtc/ingress_key.txt
+
+# Logs
+*.log
+/var/log/
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/

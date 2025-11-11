@@ -426,31 +426,74 @@
   </script>
   <script src="https://cdn.livekit.io/livekit-client-v1.15.3.min.js" crossorigin="anonymous"></script>
   <script>
-    // Attempt WebRTC connection via LiveKit if backend config & token are available
-    (async function initWebRTC(){
-      try {
-        const cfgResp = await fetch('/webrtc/config');
-        if(!cfgResp.ok) return; // backend not ready
-        const cfg = await cfgResp.json();
-        const tokenResp = await fetch('/webrtc/token?room=plastination&role=viewer');
-        if(!tokenResp.ok) return;
-        const { token } = await tokenResp.json();
-        const { Room, RoomEvent } = window.livekitClient;
-        const room = new Room();
-        room.on(RoomEvent.TrackSubscribed, (_track, publication, participant) => {
-          if(publication.kind === 'video') {
-            const videoEl = document.getElementById('webrtcVideo');
-            videoEl.style.display='block';
-            document.getElementById('cam').style.display='none'; // Hide MJPEG fallback
-            videoEl.srcObject = new MediaStream([publication.track.mediaStreamTrack]);
-          }
-        });
-        await room.connect(cfg.host, token);
-        document.getElementById('cam-status').textContent='● WebRTC';
-        document.getElementById('cam-status').className='badge success';
-      } catch (e) {
-        console.warn('WebRTC init failed, using MJPEG fallback:', e);
+    // Robust WebRTC connection attempt with retries and graceful fallback to MJPEG
+    (function initWebRTC(){
+      const statusEl = document.getElementById('cam-status');
+      const imgEl = document.getElementById('cam');
+      const videoEl = document.getElementById('webrtcVideo');
+      const { Room, RoomEvent } = window.livekitClient || {};
+
+      if(!Room){
+        console.warn('LiveKit client not loaded');
+        return; // keep MJPEG
       }
+
+      let backoff = 2000; // start at 2s
+      let room;
+
+      async function tryConnect(){
+        try{
+          statusEl.textContent = 'Connecting…';
+          statusEl.className = 'badge';
+          const cfgResp = await fetch('/webrtc/config', {cache:'no-store'});
+          if(!cfgResp.ok) throw new Error('config http '+cfgResp.status);
+          const cfg = await cfgResp.json();
+          if(!cfg.host){ throw new Error('Missing host in /webrtc/config'); }
+          const tokenResp = await fetch('/webrtc/token?room=plastination&role=viewer', {cache:'no-store'});
+          if(!tokenResp.ok) throw new Error('token http '+tokenResp.status);
+          const { token } = await tokenResp.json();
+
+          room = new Room();
+          let haveVideo = false;
+          room.on(RoomEvent.TrackSubscribed, (_track, publication) => {
+            if(publication.kind === 'video' && publication.track){
+              const ms = new MediaStream([publication.track.mediaStreamTrack]);
+              videoEl.srcObject = ms;
+              videoEl.style.display='block';
+              imgEl.style.display='none';
+              statusEl.textContent='● WebRTC';
+              statusEl.className='badge success';
+              haveVideo = true;
+            }
+          });
+          room.on(RoomEvent.Disconnected, () => {
+            // Restore MJPEG on disconnect
+            videoEl.style.display='none';
+            imgEl.style.display='block';
+            statusEl.textContent='Disconnected';
+            statusEl.className='badge warn';
+            scheduleRetry();
+          });
+
+          await room.connect(cfg.host, token);
+          // If no video appears within 4s, keep MJPEG visible and schedule retry
+          setTimeout(()=>{ if(!haveVideo){ scheduleRetry(); } }, 4000);
+        }catch(err){
+          console.warn('WebRTC connect failed:', err);
+          scheduleRetry();
+        }
+      }
+
+      function scheduleRetry(){
+        statusEl.textContent = 'Retrying…';
+        statusEl.className = 'badge';
+        setTimeout(()=>{
+          backoff = Math.min(backoff*1.7, 20000);
+          tryConnect();
+        }, backoff);
+      }
+
+      tryConnect();
     })();
   </script>
 </body>

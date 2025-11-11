@@ -8,6 +8,8 @@ from typing import Optional
 
 from fastapi import APIRouter, Response
 from fastapi.responses import StreamingResponse
+from pathlib import Path
+import json
 
 
 router = APIRouter(prefix="/camera", tags=["camera"])
@@ -159,7 +161,17 @@ _camera = CameraController(
 @router.get("/status")
 def get_camera_status():
     """Get camera status."""
-    return _camera.status()
+    status = _camera.status()
+    # Augment with publisher health if available
+    health_path = Path(os.getenv("PUBLISHER_HEALTH_FILE", "/tmp/publisher_health.json"))
+    if health_path.exists():
+        try:
+            status["publisher"] = json.loads(health_path.read_text())
+        except Exception:
+            status["publisher"] = {"status": "unreadable"}
+    else:
+        status["publisher"] = {"status": "missing"}
+    return status
 
 
 @router.post("/start")
@@ -217,7 +229,12 @@ def video_feed():
             media_type="text/plain",
             status_code=503
         )
-    
+    # Ensure running (auto-start safeguard)
+    if not _camera.is_running:
+        try:
+            _camera.start()
+        except Exception as e:
+            return Response(content=f"Failed to start camera: {e}", media_type="text/plain", status_code=500)
     return StreamingResponse(
         generate_frames(),
         media_type='multipart/x-mixed-replace; boundary=FRAME'

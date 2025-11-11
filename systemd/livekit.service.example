@@ -1,0 +1,20 @@
+# Copy to /etc/systemd/system/livekit.service
+# Manages LiveKit stack via docker compose (livekit + ingress + coturn)
+[Unit]
+Description=LiveKit SFU Stack
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/var/www/secure/uuplastination-secure/webrtc
+EnvironmentFile=/var/www/secure/uuplastination-secure/.env
+ExecStart=/usr/bin/docker compose up -d livekit ingress coturn
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=120
+TimeoutStopSec=45
+
+[Install]
+WantedBy=multi-user.target

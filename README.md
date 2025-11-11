@@ -15,6 +15,7 @@ Modern, Apple-inspired web dashboard for controlling plastination equipment with
 - 🦾 **Valve Control** - Stepper motor control via configurable GPIO pins- Returns JSON: CPU temp/usage, memory totals/used/percent, uptime seconds, network IPv4 addresses (non-loopback) and internet reachability, systemd service states (camera, stepper, nginx, tailscaled, webhook-deploy), simple port checks (RTSP 8554 and local HTTP 8000), OS info (PRETTY_NAME, kernel, arch), and a timestamp.
 
 - 📊 **System Monitoring** - Real-time CPU, memory, and health metrics- Frontend: The secure page footer fetches `/api/stats` and renders concise badges and info. If unavailable, it shows a graceful “Failed to load stats”.
+- 🚀 **LiveKit/WebRTC** - Automatic WebRTC low-latency feed with MJPEG fallback and resilient Pi publisher service (RTMP ingress + systemd).
 
 - 🫧 **Bubble Detection** - Track and visualize bubble rates (placeholder for AI integration)
 
@@ -283,6 +284,55 @@ server {		limit_req zone=actuator burst=5 nodelay;
 - [SETUP.md](SETUP.md) - Complete setup guide
 - [GPIO_SETUP.md](GPIO_SETUP.md) - GPIO pin configuration and wiring
 - [.env.example](.env.example) - Environment configuration reference
+
+## 🎥 LiveKit WebRTC & Pi Camera Publisher
+
+For a permanent, reliable live feed, run the Pi camera as an autonomous RTMP publisher into a LiveKit Ingress. The dashboard will automatically subscribe via WebRTC; if unavailable it falls back to MJPEG and keeps retrying.
+
+### 1. Create Ingress & Store Stream Key
+```
+python3 webrtc/init_ingress.py --room plastination --name pi-cam --out webrtc/ingress_key.txt
+cat webrtc/ingress_key.txt  # contains RTMP_URL and STREAM_KEY
+```
+
+### 2. Start Publisher (Manual Test)
+```
+bash webrtc/pi_rtmp_publisher.sh
+```
+
+### 3. Systemd Service (Recommended)
+```
+sudo cp systemd/pi-camera-publisher.service.example /etc/systemd/system/pi-camera-publisher.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now pi-camera-publisher.service
+```
+
+Logs: `/var/log/pi-camera/publisher.log`
+Health: `GET /camera/status` includes publisher status if health file exists.
+
+### 4. Environment Variables (Add to `.env`)
+```
+LIVEKIT_HOST=https://livekit.uuplastination.com
+LIVEKIT_API_KEY=...
+LIVEKIT_API_SECRET=...
+LIVEKIT_ICE_SERVERS=turns:turn.uuplastination.com:5349?transport=tcp
+CAMERA_WIDTH=1280
+CAMERA_HEIGHT=720
+CAMERA_FPS=30
+```
+
+### 5. Troubleshooting
+| Symptom | Action |
+|---------|--------|
+| MJPEG only, no WebRTC | Verify LiveKit HTTPS/WSS reachable & TURN ports exposed. Check browser console. |
+| Publisher restarts rapidly | Inspect ribbon cable, run `libcamera-hello`. Check log for H264 errors. |
+| Token errors | Confirm API key/secret in `.env` and service loaded `EnvironmentFile`. |
+| High latency | Ensure H264 hardware encode (libcamera-vid) instead of software MJPEG→x264 path. |
+| TURN failures | Use TURNS (5349) over TCP if UDP blocked; verify certificate and realm match domain. |
+
+### 6. Alternative: Python Publisher Prototype
+Experimental module at `app/services/publisher.py` sketches a future direct WebRTC publisher. Current production path remains RTMP ingress + ffmpeg for maximum stability.
+
 
 ## 🐛 Troubleshooting
 

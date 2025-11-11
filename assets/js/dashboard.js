@@ -4,7 +4,7 @@
  */
 
 // ========== CONFIGURATION ==========
-const MOCK_DATA = true; // Set to false when real endpoints are available
+const MOCK_DATA = false; // Set to false when real endpoints are available
 const UPDATE_INTERVAL = 5000; // 5 seconds
 const CHART_UPDATE_INTERVAL = 2000; // 2 seconds for chart animation
 

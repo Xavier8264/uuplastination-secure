@@ -1,7 +1,9 @@
 fastapi
 uvicorn[standard]
 psutil
-picamera2
+# picamera2 requires Raspberry Pi OS packages (libcamera) and libcap dev headers.
+# Install it directly on the Pi via apt/pip following Raspberry Pi docs, not in generic builds.
+# picamera2
 # RPi.GPIO is usually pre-installed on Raspberry Pi OS
 # If not, uncomment the line below:
 # RPi.GPIO
@@ -9,3 +11,7 @@ python-multipart
 aiofiles
 PyJWT
 livekit-api
+aiohttp
+opencv-python ; platform_machine != 'armv6l'
+aiortc
+av
