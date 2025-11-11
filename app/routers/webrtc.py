@@ -6,6 +6,9 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 import jwt
+import json
+import socket
+import urllib.request
 from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter(prefix="/webrtc", tags=["webrtc"])
@@ -67,6 +70,10 @@ def get_config() -> Dict[str, Any]:
         "host": host,
         "iceServers": _ice_servers(),
         "disabled": WEBRTC_DISABLE,
+        "notes": [
+            "If LiveKit is behind an nginx location /livekit/ ensure proxy_pass has a trailing slash.",
+            "Prefer a dedicated HTTPS domain (e.g. https://livekit.example.com) for production.",
+        ],
     }
 
 
@@ -123,3 +130,75 @@ def create_rtmp_ingress(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/health")
+def health() -> Dict[str, Any]:
+    """Return quick health summary for WebRTC setup.
+    Checks: env vars, reachability of LiveKit signaling endpoint, ICE servers presence.
+    """
+    host_cfg = LIVEKIT_HOST.strip()
+    effective_host = host_cfg or "/livekit"
+    ice = _ice_servers()
+    api_creds = bool(LIVEKIT_API_KEY and LIVEKIT_API_SECRET)
+    reachability: Optional[str] = None
+
+    # Attempt a TCP connect for hostname:port if absolute URL given
+    if effective_host.startswith("http"):
+        try:
+            # Parse host:port
+            from urllib.parse import urlparse
+            u = urlparse(effective_host)
+            port = u.port or (443 if u.scheme == "https" else 80)
+            with socket.create_connection((u.hostname, port), timeout=2):
+                reachability = "tcp-ok"
+        except Exception as e:
+            reachability = f"tcp-failed: {e}"[:160]
+    else:
+        # Relative path: try local HTTP GET via nginx proxy (assumes same origin)
+        try:
+            # This will raise if not running under a public server; keep optional
+            with urllib.request.urlopen(effective_host + ("/" if not effective_host.endswith("/") else "")) as _resp:
+                reachability = f"http-status-{_resp.status}"
+        except Exception as e:
+            reachability = f"http-failed: {e}"[:160]
+
+    recommendations = []
+    if not host_cfg:
+        recommendations.append("Set LIVEKIT_HOST to a full https:// domain for production (current uses proxied /livekit path).")
+    if not api_creds:
+        recommendations.append("Set LIVEKIT_API_KEY and LIVEKIT_API_SECRET; required for token issuing and ingress creation.")
+    if not ice:
+        recommendations.append("Provide LIVEKIT_ICE_SERVERS (STUN/TURN) to ensure remote clients can receive media.")
+    if WEBRTC_DISABLE:
+        recommendations.append("WEBRTC_DISABLE is active; unset it to enable WebRTC.")
+
+    return {
+        "livekit_host_env": host_cfg or None,
+        "effective_host": effective_host,
+        "api_credentials_configured": api_creds,
+        "ice_servers_count": len(ice),
+        "disabled": WEBRTC_DISABLE,
+        "reachability": reachability,
+        "recommendations": recommendations,
+    }
+
+
+@router.get("/diagnostics")
+def diagnostics() -> Dict[str, Any]:
+    """More detailed diagnostics including token generation attempt (without exposing secret)."""
+    diag: Dict[str, Any] = {}
+    h = health()
+    diag.update(h)
+    # Attempt a viewer token (won't expose secret)
+    try:
+        if h["api_credentials_configured"]:
+            dummy_identity = "diag-" + uuid.uuid4().hex[:6]
+            token = _build_access_token(dummy_identity, "plastination", can_publish=False)
+            diag["token_issuance"] = "ok"
+            diag["sample_token_prefix"] = token[:24] + "..."
+        else:
+            diag["token_issuance"] = "skipped"
+    except Exception as e:
+        diag["token_issuance"] = f"error: {e}"[:160]
+    return diag

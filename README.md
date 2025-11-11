@@ -329,6 +329,43 @@ CAMERA_FPS=30
 | Token errors | Confirm API key/secret in `.env` and service loaded `EnvironmentFile`. |
 | High latency | Ensure H264 hardware encode (libcamera-vid) instead of software MJPEG→x264 path. |
 | TURN failures | Use TURNS (5349) over TCP if UDP blocked; verify certificate and realm match domain. |
+| ICE gathering stalls | Check `/webrtc/health` for missing ICE servers; add `LIVEKIT_ICE_SERVERS`. |
+| Browser mixed-content error | Set `LIVEKIT_HOST` to https://... or rely on relative `/livekit` proxy with HTTPS site. |
+| 403 joining room | Rotate API key/secret; verify LiveKit server keys match `.env`. |
+
+### Health & Diagnostics Endpoints
+
+The backend exposes two helper endpoints to accelerate troubleshooting:
+
+```
+GET /webrtc/health        # Summarizes env vars, reachability, ICE server count, disabled flag
+GET /webrtc/diagnostics   # Adds token issuance attempt & sample token prefix
+```
+
+Interpretation hints:
+- `reachability: tcp-ok` (absolute HTTPS host) or `http-status-200` (proxied path) means signaling path is reachable.
+- Empty `recommendations` means baseline config looks good.
+- If `ice_servers_count` is 0 add STUN/TURN to `LIVEKIT_ICE_SERVERS`.
+- If `api_credentials_configured` is false set `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET`.
+
+### Automated Validation Script
+
+Run consolidated checks without needing a browser:
+
+```
+python3 scripts/webrtc_validate.py
+```
+
+Outputs PASS/FAIL lines for:
+1. Environment variables present
+2. Host URL form (absolute vs relative proxy)
+3. Token issuance
+4. Signaling reachability
+5. ICE servers presence
+6. TURN guidance (ports/certs/realm)
+
+If a critical check FAILs, follow the printed recommendation then re-run the script.
+
 
 ### 6. Alternative: Python Publisher Prototype
 Experimental module at `app/services/publisher.py` sketches a future direct WebRTC publisher. Current production path remains RTMP ingress + ffmpeg for maximum stability.
