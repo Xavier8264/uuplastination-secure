@@ -7,3 +7,4 @@ picamera2
 # RPi.GPIO
 python-multipart
 aiofiles
+PyJWT

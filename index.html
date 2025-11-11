@@ -112,8 +112,10 @@
           </div>
           <div class="body">
             <div class="camera-wrap">
-              <!-- If you are serving an MJPEG stream, expose it at /camera/stream.mjpg -->
-              <img id="cam" alt="Camera stream" src="/camera/stream.mjpg" onerror="this.dataset.err=1;document.getElementById('cam-status').textContent='Disconnected';document.getElementById('cam-status').className='badge warn'">
+              <!-- MJPEG fallback stream -->
+              <img id="cam" alt="Camera stream" src="/camera/stream.mjpg" onerror="this.dataset.err=1;document.getElementById('cam-status').textContent='Disconnected';document.getElementById('cam-status').className='badge warn'" style="display:block">
+              <!-- WebRTC live video element (hidden until connected) -->
+              <video id="webrtcVideo" autoplay playsinline muted style="display:none"></video>
               <!-- Lightweight overlay canvas for future detections -->
               <canvas id="overlay"></canvas>
               <div style="position:absolute; left:12px; bottom:12px; display:flex; gap:8px">
@@ -421,6 +423,35 @@
       });
     });
 
+  </script>
+  <script src="https://cdn.livekit.io/livekit-client-v1.15.3.min.js" crossorigin="anonymous"></script>
+  <script>
+    // Attempt WebRTC connection via LiveKit if backend config & token are available
+    (async function initWebRTC(){
+      try {
+        const cfgResp = await fetch('/webrtc/config');
+        if(!cfgResp.ok) return; // backend not ready
+        const cfg = await cfgResp.json();
+        const tokenResp = await fetch('/webrtc/token?room=plastination&role=viewer');
+        if(!tokenResp.ok) return;
+        const { token } = await tokenResp.json();
+        const { Room, RoomEvent } = window.livekitClient;
+        const room = new Room();
+        room.on(RoomEvent.TrackSubscribed, (_track, publication, participant) => {
+          if(publication.kind === 'video') {
+            const videoEl = document.getElementById('webrtcVideo');
+            videoEl.style.display='block';
+            document.getElementById('cam').style.display='none'; // Hide MJPEG fallback
+            videoEl.srcObject = new MediaStream([publication.track.mediaStreamTrack]);
+          }
+        });
+        await room.connect(cfg.host, token);
+        document.getElementById('cam-status').textContent='● WebRTC';
+        document.getElementById('cam-status').className='badge success';
+      } catch (e) {
+        console.warn('WebRTC init failed, using MJPEG fallback:', e);
+      }
+    })();
   </script>
 </body>
 </html>
