@@ -4,21 +4,43 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Plastination Control System – Secure</title>
+  <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#0B0B0F" />
+  <link rel="stylesheet" href="assets/styles/design-tokens.css" />
   <style>
-    :root{
-      --bg: #f5f5f7;          /* Apple's light background */
-      --panel: rgba(255,255,255,0.85); /* frosted glass */
-      --panel-2: rgba(249,249,249,0.9);
-      --border: rgba(0,0,0,0.08);
-      --text: #1d1d1f;        /* Apple's primary text */
-      --muted: #86868b;       /* Apple's secondary text */
-      --primary: #007aff;     /* Apple blue */
-      --accent: #30d158;      /* Apple green */
-      --success: #30d158;     /* Apple green */
-      --warning: #ff9500;     /* Apple orange */
-      --danger: #ff3b30;      /* Apple red */
-      --shadow: 0 2px 16px rgba(0,0,0,0.12);
-      --radius: 12px;
+    /* Map existing component variables to design tokens for Apple-inspired dark mode */
+    :root {
+      --bg: var(--background);
+      --panel: var(--surface);
+      --panel-2: var(--surface-2);
+      --border: var(--border);
+      --text: var(--text);
+      --muted: var(--text-secondary);
+      --primary: var(--accent);
+      --accent: var(--positive);
+      --success: var(--positive);
+      --warning: var(--warning);
+      --danger: var(--danger);
+      --shadow: var(--shadow-subtle);
+      --radius: var(--radius-md);
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        /* In light mode the token system already flips; keep mapping consistent */
+        --bg: var(--background);
+        --panel: var(--surface);
+        --panel-2: var(--surface-2);
+        --border: var(--border);
+        --text: var(--text);
+        --muted: var(--text-secondary);
+        --primary: var(--accent);
+        --accent: var(--positive);
+        --success: var(--positive);
+        --warning: var(--warning);
+        --danger: var(--danger);
+        --shadow: var(--shadow-subtle);
+        --radius: var(--radius-md);
+      }
     }
     *{box-sizing:border-box}
     html,body{height:100%}
@@ -26,67 +48,69 @@
       margin:0;
       background: var(--bg);
       color:var(--text);
-      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font: 14px/1.5 var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
       letter-spacing: -0.01em;
       font-weight: 400;
       overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
     }
     header{
       position:sticky; top:0; z-index:5;
       display:flex; align-items:center; gap:16px; justify-content:space-between;
-      padding:16px 24px; border-bottom:1px solid var(--border);
+      padding:16px 24px; border-bottom:1px solid var(--divider);
       background: var(--panel);
-      backdrop-filter: blur(20px) saturate(1.8);
-      -webkit-backdrop-filter: blur(20px) saturate(1.8);
-      box-shadow: 0 1px 0 rgba(255,255,255,0.5), 0 1px 20px rgba(0,0,0,0.08);
+      backdrop-filter: blur(24px) saturate(1.6);
+      -webkit-backdrop-filter: blur(24px) saturate(1.6);
+      box-shadow: var(--shadow-sm);
     }
     .title{font-size:20px; font-weight:600; letter-spacing:-0.02em}
-    .chip{display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border:1px solid var(--border); border-radius:16px; color:var(--muted); background:var(--panel); backdrop-filter: blur(10px)}
-    .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:8px 16px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:8px; cursor:pointer; transition:all 0.2s ease; box-shadow:var(--shadow); font-weight:500; font-size:14px; backdrop-filter: blur(10px)}
-    .btn:hover{transform:translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.15); border-color:rgba(0,0,0,0.12)}
+  .chip{display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border:1px solid var(--border); border-radius:16px; color:var(--text-secondary); background:var(--surface-3); backdrop-filter: blur(12px)}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:8px 16px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); border-radius:8px; cursor:pointer; transition:all var(--transition-base); box-shadow:var(--shadow-sm); font-weight:500; font-size:14px; backdrop-filter: blur(12px)}
+  .btn:hover{transform:translateY(-2px); box-shadow:var(--shadow-md); border-color:var(--border-hover)}
     .btn:active{transform:translateY(0); box-shadow:var(--shadow)}
     .btn:disabled{opacity:.4; cursor:not-allowed; transform:none}
-    .btn.primary{background:var(--primary); border-color:var(--primary); color:white; font-weight:600}
-    .btn.primary:hover{background:#0051d5; border-color:#0051d5}
-    .btn.danger{background:var(--danger); border-color:var(--danger); color:white; font-weight:600}
-    .btn.danger:hover{background:#d70015; border-color:#d70015}
+  .btn.primary{background:var(--primary); border-color:var(--primary); color:#fff; font-weight:600}
+  .btn.primary:hover{background:var(--accent-hover); border-color:var(--accent-hover)}
+  .btn.danger{background:var(--danger); border-color:var(--danger); color:#fff; font-weight:600}
+  .btn.danger:hover{filter:brightness(1.15)}
 
     main{max-width:1600px; margin:20px auto; padding:0 24px}
     .grid{display:grid; grid-template-columns: 7fr 3fr; gap:20px}
     @media (max-width:1100px){ .grid{grid-template-columns: 1fr;}}
-    .card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; backdrop-filter: blur(20px)}
-    .card h3{margin:0; font-size:13px; font-weight:600; color:var(--text); text-transform:uppercase; letter-spacing:0.05em}
-    .card .hdr{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 20px; border-bottom:1px solid var(--border); background: var(--panel-2)}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-subtle); overflow:hidden; backdrop-filter: blur(24px)}
+  .card h3{margin:0; font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.08em}
+  .card .hdr{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 20px; border-bottom:1px solid var(--divider); background: var(--surface-2)}
     .card .body{padding:20px}
     .muted{color:var(--muted)}
     .mono{font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-weight:500}
 
     /* camera */
-    .camera-wrap{position:relative; aspect-ratio:16/9; background:#f0f0f0; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
+  .camera-wrap{position:relative; aspect-ratio:16/9; background:#000; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
     /* Fallback for browsers without aspect-ratio support */
     @supports not (aspect-ratio: 16/9) {
       .camera-wrap::before{content:""; display:block; padding-top:56.25%;}
       .camera-wrap > *{position:absolute; inset:0}
     }
     .camera-wrap img, .camera-wrap video, .camera-wrap canvas{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
-    .badge{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:12px; font-size:11px; border:1px solid var(--border); background:var(--panel); font-weight:500; backdrop-filter: blur(10px)}
+  .badge{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:12px; font-size:11px; border:1px solid var(--border); background:var(--surface-3); font-weight:500; backdrop-filter: blur(12px)}
     .badge.success{background:rgba(48, 209, 88, 0.1); color:var(--success); border-color:rgba(48, 209, 88, 0.2)}
     .badge.warn{background:rgba(255, 149, 0, 0.1); color:var(--warning); border-color:rgba(255, 149, 0, 0.2)}
+  .badge.info{background:var(--info-bg); color:var(--info); border-color:var(--info-border)}
 
     /* valve */
-    .range-bar{position:relative; height:8px; border-radius:4px; background:rgba(0,0,0,0.06); border:none; overflow:hidden}
+  .range-bar{position:relative; height:8px; border-radius:4px; background:var(--surface-3); border:none; overflow:hidden}
     .range-bar > div{position:absolute; inset:0 0 0 0; transform-origin:left center; background:linear-gradient(90deg, var(--primary), var(--accent)); border-radius:4px}
     .valve-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
 
     /* chart */
-    .chart{height:280px; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); position:relative}
+  .chart{height:280px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius); position:relative}
     .ylabels{position:absolute; left:12px; top:12px; bottom:12px; display:flex; flex-direction:column; justify-content:space-between; color:var(--muted); font-size:11px; font-weight:500}
 
     /* status table */
-    .kv{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid rgba(0,0,0,0.05)}
+  .kv{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid var(--divider)}
     .kv:last-child{border-bottom:none}
 
-    .footer{margin:12px 0 0; font-size:12px; color:var(--muted); font-weight:400}
+    .footer{margin:12px 0 0; font-size:12px; color:var(--text-tertiary); font-weight:400}
   </style>
 </head>
 <body>
