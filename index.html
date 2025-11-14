@@ -192,9 +192,18 @@
             <div class="range-bar" aria-hidden="true"><div id="valve-bar" style="transform:scaleX(.45)"></div></div>
             <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:6px"><span>Closed</span><span>Open</span></div>
             <div class="valve-grid" style="margin-top:14px">
-              <button id="valve-close" class="btn">Close −5%</button>
-              <button id="valve-open"  class="btn primary">Open +5%</button>
+              <div style="display:flex; flex-direction:column; gap:8px; width:100%">
+                <div style="display:flex; gap:8px;">
+                  <button id="valve-close" class="btn">Close −5%</button>
+                  <button id="valve-open"  class="btn primary">Open +5%</button>
+                </div>
+                <div style="display:flex; gap:8px;">
+                  <button id="valve-move-close" class="btn">Close -1</button>
+                  <button id="valve-move-open" class="btn primary">Open +1</button>
+                </div>
+              </div>
             </div>
+            <div id="valve-api-status" class="footer muted mono">Valve API: idle</div>
             <div class="footer">Motor: <span style="color:var(--success)">● Connected</span> • Increment: ±5%</div>
           </div>
         </div>
@@ -318,6 +327,49 @@
 
     document.getElementById('valve-open').addEventListener('click', ()=> postOrSim(CONFIG.valveOpen, +5));
     document.getElementById('valve-close').addEventListener('click',()=> postOrSim(CONFIG.valveClose, -5));
+
+    // --- Valve API (MOVE units) integration ---
+    const valveApiStatus = document.getElementById('valve-api-status');
+
+    async function moveValve(units){
+      valveApiStatus.textContent = `Valve API: sending MOVE ${units}...`;
+      try{
+        const res = await fetch('/api/valve/move', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ units })
+        });
+
+        if(!res.ok){
+          let errText = '';
+          try{ const err = await res.json(); errText = err.detail || JSON.stringify(err); }catch(e){ errText = `${res.status} ${res.statusText}` }
+          console.error('Valve move failed:', errText);
+          valveApiStatus.textContent = `Valve API: error - ${errText}`;
+          alert('Valve move failed: ' + errText);
+          return;
+        }
+
+        const data = await res.json();
+        console.log('Valve move response:', data);
+        valveApiStatus.textContent = `Valve API: ${data.arduino_reply || 'ok'}`;
+
+        // Update UI position estimate: 1 unit = 25% (1250/5000 -> 1/4 rev)
+        if(typeof units === 'number'){
+          valvePos = Math.min(100, Math.max(0, valvePos + units*25));
+          renderValve();
+        }
+      }catch(e){
+        console.error('Error talking to valve API:', e);
+        valveApiStatus.textContent = 'Valve API: communication error';
+        alert('Error talking to valve API');
+      }
+    }
+
+    // wire the new +/-1 buttons to the moveValve API
+    const mvOpenBtn = document.getElementById('valve-move-open');
+    const mvCloseBtn = document.getElementById('valve-move-close');
+    if(mvOpenBtn) mvOpenBtn.addEventListener('click', ()=> moveValve(1));
+    if(mvCloseBtn) mvCloseBtn.addEventListener('click', ()=> moveValve(-1));
 
     // --- Bubble rate stats (simulated drift) ---
     const nowEl = document.getElementById('rate-now');

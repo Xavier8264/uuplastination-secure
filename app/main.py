@@ -9,6 +9,7 @@ from .routers.camera import router as camera_router
 from .routers.stats import router as stats_router
 from .routers.stepper import router as stepper_router
 from .routers.webrtc import router as webrtc_router
+from .routers.valve import router as valve_router
 
 # Load environment variables from .env file
 project_root = Path(__file__).parent.parent
@@ -23,6 +24,7 @@ def create_app() -> FastAPI:
     app.include_router(stepper_router)
     app.include_router(camera_router)
     app.include_router(webrtc_router)
+    app.include_router(valve_router)
     
     # Get the project root directory (parent of app/)
     project_root = Path(__file__).parent.parent
