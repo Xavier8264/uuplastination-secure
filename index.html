@@ -155,6 +155,22 @@
           </div>
         </div>
 
+        <!-- Tank HLS Stream (RTMP->HLS) -->
+        <div class="card">
+          <div class="hdr">
+            <h3>Plastination Tank HLS Stream</h3>
+            <span class="badge" id="hls-status">Initializing…</span>
+          </div>
+          <div class="body">
+            <div class="camera-wrap">
+              <video id="tankStream" controls autoplay playsinline muted poster="" style="background:#000"></video>
+              <div style="position:absolute; left:12px; bottom:12px; display:flex; gap:8px">
+                <span class="badge mono" id="hls-meta">HLS • awaiting segments</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Bubble Rate History (placeholder; regenerates mock data) -->
         <div class="card">
           <div class="hdr">
@@ -504,6 +520,72 @@
       });
     });
 
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script>
+    // Lightweight HLS player initialization for tank stream
+    (function initHLS(){
+      const statusEl = document.getElementById('hls-status');
+      const metaEl = document.getElementById('hls-meta');
+      const videoEl = document.getElementById('tankStream');
+      if(!videoEl) return;
+      const src = '/live/cam.m3u8'; // playlist served by nginx alias
+
+      function setStatus(txt, cls){
+        statusEl.textContent = txt;
+        statusEl.className = 'badge' + (cls ? ' ' + cls : '');
+      }
+
+      async function checkHead(){
+        try {
+          const r = await fetch(src, { method:'GET', cache:'no-store' });
+          if(r.ok){
+            metaEl.textContent = 'HLS • playlist OK';
+            return true;
+          }
+        } catch(e) {}
+        return false;
+      }
+
+      async function start(){
+        const ready = await checkHead();
+        if(!ready){
+          setStatus('Waiting…', 'warn');
+          setTimeout(start, 3000);
+          return;
+        }
+        if(window.Hls && window.Hls.isSupported()){
+          const hls = new window.Hls({
+            maxBufferLength: 30,
+            liveSyncDurationCount: 3,
+            enableWorker: true,
+          });
+          hls.on(window.Hls.Events.ERROR, (_, data) => {
+            if(data && data.fatal){
+              setStatus('Error – retrying', 'warn');
+              hls.destroy();
+              setTimeout(start, 3000);
+            }
+          });
+          hls.loadSource(src);
+          hls.attachMedia(videoEl);
+          videoEl.addEventListener('loadedmetadata', () => {
+            setStatus('● Live', 'success');
+            metaEl.textContent = 'HLS • ' + (videoEl.videoWidth||'') + 'x' + (videoEl.videoHeight||'');
+          });
+        } else if(videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+          videoEl.src = src;
+          videoEl.addEventListener('loadedmetadata', () => {
+            setStatus('● Live', 'success');
+            metaEl.textContent = 'HLS • ' + (videoEl.videoWidth||'') + 'x' + (videoEl.videoHeight||'');
+          });
+        } else {
+          setStatus('Unsupported', 'warn');
+          metaEl.textContent = 'Browser lacks HLS support';
+        }
+      }
+      start();
+    })();
   </script>
   <script src="https://cdn.livekit.io/livekit-client-v1.15.3.min.js" crossorigin="anonymous"></script>
   <script>
