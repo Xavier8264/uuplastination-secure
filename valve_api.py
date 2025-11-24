@@ -1,53 +1,105 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import serial
-import time
-import threading
+"""
+Simple valve control via Arduino serial communication.
+Open button → sends 'r'
+Close button → sends 'l'
 
-# Adjust this to match your Arduino device:
-#   ls /dev/ttyACM*  or  ls /dev/ttyUSB*
+Replace your existing app/routers/valve.py with this file.
+"""
+
+from fastapi import APIRouter, HTTPException
+import serial
+import threading
+import time
+from typing import Optional
+
+router = APIRouter()
+
+# Serial configuration
 SERIAL_PORT = "/dev/ttyACM0"
 BAUD_RATE = 115200
 
-app = FastAPI()
-
+# Global serial connection (kept open forever)
+serial_conn: Optional[serial.Serial] = None
 serial_lock = threading.Lock()
-ser = None
 
 
 def init_serial():
-    global ser
-    if ser is None:
-        ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
-        # give Arduino time to reset after opening
-        time.sleep(2)
+    """Initialize serial connection on startup"""
+    global serial_conn
+    try:
+        serial_conn = serial.Serial(
+            port=SERIAL_PORT,
+            baudrate=BAUD_RATE,
+            timeout=1.0
+        )
+        print(f"✓ Serial connected to {SERIAL_PORT}")
+        time.sleep(2)  # Wait for Arduino to reset
+        serial_conn.reset_input_buffer()
+        serial_conn.reset_output_buffer()
+    except Exception as e:
+        print(f"✗ Serial connection failed: {e}")
+        serial_conn = None
 
 
-class MoveRequest(BaseModel):
-    units: int  # positive or negative integer
+# Initialize on module load
+init_serial()
 
 
-@app.on_event("startup")
-def on_startup():
-    init_serial()
-
-
-@app.post("/api/valve/move")
-def move_valve(req: MoveRequest):
-    if req.units == 0:
-        raise HTTPException(status_code=400, detail="units must be non-zero")
-
-    cmd = f"MOVE {req.units}\n"
-
+@router.post("/api/valve/open")
+async def open_valve():
+    """Send 'r' to Arduino"""
     with serial_lock:
-        ser.reset_input_buffer()
-        ser.write(cmd.encode("ascii"))
-        ser.flush()
-        # optional readback from Arduino
-        reply = ser.readline().decode(errors="ignore").strip()
+        if not serial_conn or not serial_conn.is_open:
+            raise HTTPException(status_code=503, detail="Serial port not connected")
+        
+        try:
+            serial_conn.write(b'r')
+            serial_conn.flush()
+            return {"status": "ok", "command": "r", "action": "open"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Serial error: {str(e)}")
 
-    return {
-        "status": "ok",
-        "sent_command": cmd.strip(),
-        "arduino_reply": reply,
-    }
+
+@router.post("/api/valve/close")
+async def close_valve():
+    """Send 'l' to Arduino"""
+    with serial_lock:
+        if not serial_conn or not serial_conn.is_open:
+            raise HTTPException(status_code=503, detail="Serial port not connected")
+        
+        try:
+            serial_conn.write(b'l')
+            serial_conn.flush()
+            return {"status": "ok", "command": "l", "action": "close"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Serial error: {str(e)}")
+
+
+@router.get("/api/valve/status")
+async def valve_status():
+    """Check if Arduino serial connection is available"""
+    try:
+        with serial_lock:
+            ser = get_serial()
+            return {
+                "connected": ser.is_open,
+                "port": SERIAL_PORT,
+                "baud_rate": BAUD_RATE
+            }
+    except HTTPException as e:
+        return {
+            "connected": False,
+            "port": SERIAL_PORT,
+            "error": e.detail
+        }
+
+
+# Cleanup on shutdown
+def cleanup():
+    """Close serial connection on shutdown"""
+    global serial_conn
+    if serial_conn and serial_conn.is_open:
+        try:
+            serial_conn.close()
+        except:
+            pass
