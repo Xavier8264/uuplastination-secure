@@ -197,30 +197,15 @@
 
       <!-- Right column (≈30%) -->
       <aside style="display:flex; flex-direction:column; gap:20px">
-        <!-- Valve Control -->
+        <!-- Valve Control (Simplified) -->
         <div class="card">
           <div class="hdr"><h3>Manual Valve Control</h3><span class="badge" id="valve-state">Ready</span></div>
           <div class="body">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px">
-              <span class="muted">Current Position</span>
-              <strong class="mono" id="valve-pos">45%</strong>
+            <div style="display:flex; gap:12px; justify-content:center; margin-top:4px;">
+              <button id="valve-close" class="btn" style="flex:1">Close</button>
+              <button id="valve-open"  class="btn primary" style="flex:1">Open</button>
             </div>
-            <div class="range-bar" aria-hidden="true"><div id="valve-bar" style="transform:scaleX(.45)"></div></div>
-            <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:6px"><span>Closed</span><span>Open</span></div>
-            <div class="valve-grid" style="margin-top:14px">
-              <div style="display:flex; flex-direction:column; gap:8px; width:100%">
-                <div style="display:flex; gap:8px;">
-                  <button id="valve-close" class="btn">Close −5%</button>
-                  <button id="valve-open"  class="btn primary">Open +5%</button>
-                </div>
-                <div style="display:flex; gap:8px;">
-                  <button id="valve-move-close" class="btn">Close -1</button>
-                  <button id="valve-move-open" class="btn primary">Open +1</button>
-                </div>
-              </div>
-            </div>
-            <div id="valve-api-status" class="footer muted mono">Valve API: idle</div>
-            <div class="footer">Motor: <span style="color:var(--success)">● Connected</span> • Increment: ±5%</div>
+            <div class="footer mono" id="valve-api-status">Idle</div>
           </div>
         </div>
 
@@ -286,6 +271,8 @@
       stepperStatus: "/api/stepper/status",
       bubblesWS:  `ws://${location.host}/camera/stream`, // future use
     };
+    // Auth token for valve API (set VALVE_API_TOKEN env to match). Replace placeholder.
+    const VALVE_TOKEN = "CHANGE_ME_TOKEN";
 
     // --- Header recording toggle (placeholder) ---
     const recBtn = document.getElementById('toggle-record');
@@ -311,81 +298,32 @@
       bubbleChip.textContent = `${n} bubble${n===1?'':'s'} detected`;
     }, 2000);
 
-    // --- Valve control (calls backend if available, otherwise simulates) ---
+    // --- Valve control (simplified: only Open/Close) ---
     const stateEl = document.getElementById('valve-state');
-    const posEl = document.getElementById('valve-pos');
-    const barEl = document.getElementById('valve-bar');
-    let valvePos = 45;
-
-    async function postOrSim(url, delta){
-      stateEl.textContent = 'Moving…';
-      try{
-        const res = await fetch(url, {method:'POST'});
-        if(res.ok){
-          const js = await res.json().catch(()=>null);
-          if(js && typeof js.position === 'number') valvePos = js.position;
-          else valvePos = Math.min(100, Math.max(0, valvePos + delta));
-        }else{
-          valvePos = Math.min(100, Math.max(0, valvePos + delta));
-        }
-      }catch(_){
-        // offline/dev mode
-        valvePos = Math.min(100, Math.max(0, valvePos + delta));
-      }
-      renderValve();
-      stateEl.textContent = 'Ready';
-    }
-
-    function renderValve(){
-      posEl.textContent = `${valvePos}%`;
-      barEl.style.transform = `scaleX(${valvePos/100})`;
-    }
-
-    document.getElementById('valve-open').addEventListener('click', ()=> postOrSim(CONFIG.valveOpen, +5));
-    document.getElementById('valve-close').addEventListener('click',()=> postOrSim(CONFIG.valveClose, -5));
-
-    // --- Valve API (MOVE units) integration ---
     const valveApiStatus = document.getElementById('valve-api-status');
+    const openBtn = document.getElementById('valve-open');
+    const closeBtn = document.getElementById('valve-close');
 
-    async function moveValve(units){
-      valveApiStatus.textContent = `Valve API: sending MOVE ${units}...`;
-      try{
-        const res = await fetch('/api/valve/move', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ units })
-        });
-
+    async function sendValve(url, label){
+      stateEl.textContent = label + '…';
+      valveApiStatus.textContent = 'Sending';
+      openBtn.disabled = true; closeBtn.disabled = true;
+      try {
+        const res = await fetch(url, { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'} });
         if(!res.ok){
-          let errText = '';
-          try{ const err = await res.json(); errText = err.detail || JSON.stringify(err); }catch(e){ errText = `${res.status} ${res.statusText}` }
-          console.error('Valve move failed:', errText);
-          valveApiStatus.textContent = `Valve API: error - ${errText}`;
-          alert('Valve move failed: ' + errText);
-          return;
+          valveApiStatus.textContent = 'Error ' + res.status;
+        } else {
+          valveApiStatus.textContent = 'OK';
         }
-
-        const data = await res.json();
-        console.log('Valve move response:', data);
-        valveApiStatus.textContent = `Valve API: ${data.arduino_reply || 'ok'}`;
-
-        // Update UI position estimate: 1 unit = 25% (1250/5000 -> 1/4 rev)
-        if(typeof units === 'number'){
-          valvePos = Math.min(100, Math.max(0, valvePos + units*25));
-          renderValve();
-        }
-      }catch(e){
-        console.error('Error talking to valve API:', e);
-        valveApiStatus.textContent = 'Valve API: communication error';
-        alert('Error talking to valve API');
+      } catch(e){
+        valveApiStatus.textContent = 'Network error';
       }
+      stateEl.textContent = 'Ready';
+      openBtn.disabled = false; closeBtn.disabled = false;
     }
 
-    // wire the new +/-1 buttons to the moveValve API
-    const mvOpenBtn = document.getElementById('valve-move-open');
-    const mvCloseBtn = document.getElementById('valve-move-close');
-    if(mvOpenBtn) mvOpenBtn.addEventListener('click', ()=> moveValve(1));
-    if(mvCloseBtn) mvCloseBtn.addEventListener('click', ()=> moveValve(-1));
+    openBtn.addEventListener('click', ()=> sendValve(CONFIG.valveOpen, 'Opening'));
+    closeBtn.addEventListener('click', ()=> sendValve(CONFIG.valveClose, 'Closing'));
 
     // --- Bubble rate stats (simulated drift) ---
     const nowEl = document.getElementById('rate-now');
