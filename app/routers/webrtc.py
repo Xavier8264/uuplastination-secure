@@ -23,6 +23,8 @@ router = APIRouter(prefix="/webrtc", tags=["webrtc"])
 # Helpers to read env with defaults
 # Prefer an HTTPS or proxy path to avoid mixed-content from HTTPS pages
 LIVEKIT_HOST = os.getenv("LIVEKIT_HOST", "")
+# When LIVEKIT_HOST is blank, use a reverse-proxied path (e.g., /livekit or /secure/livekit)
+LIVEKIT_PROXY_PATH = os.getenv("LIVEKIT_PROXY_PATH", "/livekit")
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
 # Comma-separated list like: "stun:stun.l.google.com:19302,turns:turn.example.com:5349?transport=tcp"
@@ -32,11 +34,11 @@ WEBRTC_DISABLE = os.getenv("WEBRTC_DISABLE", "0") not in ("0", "false", "False",
 
 def _ice_servers() -> List[Dict[str, Any]]:
     urls_raw = [u.strip() for u in LIVEKIT_ICE_SERVERS_RAW.split(",") if u.strip()]
+    # Provide a sane default STUN for dev/local if none configured
     if not urls_raw:
-        return []
+        urls_raw = ["stun:stun.l.google.com:19302"]
     # If using TURN static auth secret, you can generate ephemeral credentials here instead of static user/pass.
-    # For now, return URL-only servers; coturn with static-auth-secret supports long-term creds, but LiveKit client
-    # can use url-only for public TURN with no auth, which is NOT recommended. We encourage setting up TURN credentials.
+    # For now, return URL-only servers; production should configure TURN with credentials.
     return [{"urls": urls_raw}]
 
 
@@ -71,7 +73,8 @@ def get_config() -> Dict[str, Any]:
     host = LIVEKIT_HOST.strip()
     # If not configured, or clearly local/http, use proxied path "/livekit" and let frontend prefix origin
     if not host or host.startswith("http://localhost") or host.startswith("http://127.0.0.1"):
-        host = "/livekit"
+        # Use configured proxy path so deployments under /secure/ can set "/secure/livekit"
+        host = LIVEKIT_PROXY_PATH if LIVEKIT_PROXY_PATH.startswith("/") else "/livekit"
     return {
         "host": host,
         "iceServers": _ice_servers(),

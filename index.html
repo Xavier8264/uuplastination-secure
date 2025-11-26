@@ -141,8 +141,8 @@
           </div>
           <div class="body">
             <div class="camera-wrap">
-              <!-- MJPEG fallback stream -->
-              <img id="cam" alt="Camera stream" src="/camera/stream.mjpg" onload="if(!window._webrtcActive){const s=document.getElementById('cam-status');s.textContent='● MJPEG';s.className='badge';}" onerror="this.dataset.err=1;document.getElementById('cam-status').textContent='Disconnected';document.getElementById('cam-status').className='badge warn'" style="display:block">
+              <!-- MJPEG fallback stream (relative path so it works under /secure/) -->
+              <img id="cam" alt="Camera stream" src="camera/stream.mjpg" onload="if(!window._webrtcActive){const s=document.getElementById('cam-status');s.textContent='● MJPEG';s.className='badge';}" onerror="this.dataset.err=1;document.getElementById('cam-status').textContent='Disconnected';document.getElementById('cam-status').className='badge warn'" style="display:block">
               <!-- WebRTC live video element (hidden until connected) -->
               <video id="webrtcVideo" autoplay playsinline muted style="display:none"></video>
               <!-- Lightweight overlay canvas for future detections -->
@@ -264,12 +264,14 @@
 
   <script>
     // --- Config ---
+    const BASE = location.pathname.startsWith('/secure/') ? '/secure' : '';
     const CONFIG = {
-      valveOpen:  "/api/valve/open",
-      valveClose: "/api/valve/close",
-      metrics:    "/api/system/metrics",
-      stepperStatus: "/api/stepper/status",
-      bubblesWS:  `ws://${location.host}/camera/stream`, // future use
+      valveOpen:  `${BASE}/api/valve/open`,
+      valveClose: `${BASE}/api/valve/close`,
+      metrics:    `${BASE}/api/system/metrics`,
+      stepperStatus: `${BASE}/api/stepper/status`,
+      // Choose ws/wss automatically if used in future
+      bubblesWS:  `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/camera/stream`,
     };
     // Auth token for valve API (set VALVE_API_TOKEN env to match). Replace placeholder.
     const VALVE_TOKEN = "CHANGE_ME_TOKEN";
@@ -290,6 +292,7 @@
     // --- Live clock on camera ---
     const clockEl = document.getElementById('clock');
     setInterval(()=> clockEl.textContent = new Date().toLocaleTimeString(), 1000);
+    const camMetaEl = document.getElementById('cam-meta');
 
     // --- Camera bubble-detection chip (simulated) ---
     const bubbleChip = document.getElementById('bubble-chip');
@@ -546,7 +549,7 @@
         try{
           statusEl.textContent = 'Connecting…';
           statusEl.className = 'badge';
-          const cfgResp = await fetch('/webrtc/config', {cache:'no-store'});
+          const cfgResp = await fetch(`${BASE}/webrtc/config`, {cache:'no-store'});
           if(!cfgResp.ok) throw new Error('config http '+cfgResp.status);
           const cfg = await cfgResp.json();
           if(cfg.disabled){
@@ -563,23 +566,26 @@
           if(typeof host === 'string' && !/^https?:\/\//i.test(host)){
             host = window.location.origin.replace(/\/$/, '') + (host.startsWith('/') ? host : ('/'+host));
           }
-          const tokenResp = await fetch('/webrtc/token?room=plastination&role=viewer', {cache:'no-store'});
+          const tokenResp = await fetch(`${BASE}/webrtc/token?room=plastination&role=viewer`, {cache:'no-store'});
           if(!tokenResp.ok) throw new Error('token http '+tokenResp.status);
           const { token } = await tokenResp.json();
-
-          room = new Room();
+          // Enable adaptive stream for better bandwidth behavior
+          room = new Room({ adaptiveStream: true, dynacast: true });
+          window._livekitRoom = room; // expose for debugging
           let haveVideo = false;
-          room.on(RoomEvent.TrackSubscribed, (_track, publication) => {
-            if(publication.kind === 'video' && publication.track){
-              const ms = new MediaStream([publication.track.mediaStreamTrack]);
-              videoEl.srcObject = ms;
-              videoEl.style.display='block';
-              imgEl.style.display='none';
-              statusEl.textContent='● WebRTC';
-              statusEl.className='badge success';
-              window._webrtcActive = true;
-              haveVideo = true;
-            }
+          room.on(RoomEvent.TrackSubscribed, (track, publication, _participant) => {
+            try {
+              if(publication.kind === 'video' && track){
+                // Use LiveKit attach util for proper handling
+                track.attach(videoEl);
+                videoEl.style.display='block';
+                imgEl.style.display='none';
+                statusEl.textContent='● WebRTC';
+                statusEl.className='badge success';
+                window._webrtcActive = true;
+                haveVideo = true;
+              }
+            } catch(e){ console.warn('Attach error', e); }
           });
           room.on(RoomEvent.Disconnected, () => {
             // Restore MJPEG on disconnect
@@ -614,13 +620,17 @@
       // Periodic camera status poll to keep badge accurate when on MJPEG
       async function pollCamera(){
         try{
-          const r = await fetch('/camera/status', {cache:'no-store'});
+          const r = await fetch(`${BASE}/camera/status`, {cache:'no-store'});
           if(!r.ok) return;
           const s = await r.json();
           if(window._webrtcActive) return; // don't override when WebRTC is active
           if(s && s.available){
             statusEl.textContent = s.running ? '● MJPEG' : 'Standby';
             statusEl.className = s.running ? 'badge' : 'badge warn';
+            // Update camera metadata from status if available
+            if (s.resolution && s.framerate && camMetaEl) {
+              camMetaEl.textContent = `${s.resolution} • ${s.framerate} FPS`;
+            }
           }else{
             statusEl.textContent = 'Disconnected';
             statusEl.className = 'badge warn';
@@ -628,6 +638,14 @@
         }catch(_){/* ignore */}
       }
       setInterval(pollCamera, 5000);
+      // Also reflect WebRTC track dimensions when available
+      if (videoEl) {
+        videoEl.addEventListener('loadedmetadata', () => {
+          if (camMetaEl && videoEl.videoWidth && videoEl.videoHeight) {
+            camMetaEl.textContent = `${videoEl.videoWidth}×${videoEl.videoHeight} • WebRTC`;
+          }
+        });
+      }
     })();
   </script>
 </body>

@@ -213,7 +213,9 @@ def generate_frames():
             frame = _camera.get_frame()
             if frame:
                 yield b'--FRAME\r\n'
-                yield b'Content-Type: image/jpeg\r\n\r\n'
+                # Including Content-Length improves compatibility with some proxies/clients
+                header = f"Content-Type: image/jpeg\r\nContent-Length: {len(frame)}\r\n\r\n".encode()
+                yield header
                 yield frame
                 yield b'\r\n'
     except GeneratorExit:
@@ -237,7 +239,14 @@ def video_feed():
             return Response(content=f"Failed to start camera: {e}", media_type="text/plain", status_code=500)
     return StreamingResponse(
         generate_frames(),
-        media_type='multipart/x-mixed-replace; boundary=FRAME'
+        media_type='multipart/x-mixed-replace; boundary=FRAME',
+        headers={
+            # Prevent any client/proxy caching of the stream
+            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+            "Pragma": "no-cache",
+            # Hint for nginx to avoid buffering this upstream
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
@@ -252,15 +261,31 @@ def get_snapshot():
             return Response(
                 content=f"Camera unavailable: {e}",
                 media_type="text/plain",
-                status_code=503
+                status_code=503,
+                headers={
+                    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+                    "Pragma": "no-cache",
+                },
             )
     
     frame = _camera.get_frame()
     if frame:
-        return Response(content=frame, media_type="image/jpeg")
+        return Response(
+            content=frame,
+            media_type="image/jpeg",
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+                "Pragma": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
     else:
         return Response(
             content="No frame available",
             media_type="text/plain",
-            status_code=503
+            status_code=503,
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+                "Pragma": "no-cache",
+            },
         )

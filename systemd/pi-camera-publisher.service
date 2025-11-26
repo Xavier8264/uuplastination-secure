@@ -1,0 +1,21 @@
+[Unit]
+Description=Pi Camera RTMP Publisher to LiveKit Ingress
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/secure/uuplastination-secure
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/var/www/secure/uuplastination-secure/.env
+# Create ingress only if missing
+ExecStartPre=/usr/bin/bash -c '[[ -f webrtc/ingress_key.txt ]] || /usr/bin/env python3 webrtc/init_ingress.py --room plastination --name pi-cam --out webrtc/ingress_key.txt'
+ExecStart=/usr/bin/env bash webrtc/pi_rtmp_publisher.sh
+Restart=always
+RestartSec=3
+StandardOutput=append:/var/log/pi-camera/publisher.log
+StandardError=append:/var/log/pi-camera/publisher.log
+
+[Install]
+WantedBy=multi-user.target
