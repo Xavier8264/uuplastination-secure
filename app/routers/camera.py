@@ -25,6 +25,13 @@ except ImportError:
     PICAMERA_AVAILABLE = False
     Picamera2 = None  # type: ignore
 
+# Optional OpenCV fallback for non-Pi or when picamera2 is unavailable
+try:  # pragma: no cover
+    import cv2  # type: ignore
+    CV2_AVAILABLE = True
+except Exception:  # pragma: no cover
+    CV2_AVAILABLE = False
+
 
 class StreamingOutput(io.BufferedIOBase):
     """Thread-safe output class for MJPEG streaming."""
@@ -55,12 +62,10 @@ class CameraController:
         self.use_mjpeg = use_mjpeg
         self.picam2: Optional[Picamera2] = None
         self.output: Optional[StreamingOutput] = None
+        self.cap = None  # OpenCV VideoCapture
+        self._cv_thread: Optional[threading.Thread] = None
         self.is_running = False
         self._lock = threading.Lock()
-        
-        if not PICAMERA_AVAILABLE:
-            print("WARNING: picamera2 not available. Camera streaming will not work.")
-            return
         
         try:
             self._initialize_camera()
@@ -69,42 +74,73 @@ class CameraController:
 
     def _initialize_camera(self):
         """Initialize the Raspberry Pi camera."""
-        if not PICAMERA_AVAILABLE:
-            return
-            
-        try:
-            self.picam2 = Picamera2(self.camera_num)
-            
-            # Configure camera for video streaming
-            video_config = self.picam2.create_video_configuration(
-                main={"size": self.resolution, "format": "RGB888"},
-                controls={"FrameRate": self.framerate}
-            )
-            self.picam2.configure(video_config)
-            
-            # Setup streaming output
-            self.output = StreamingOutput()
-            
-            print(f"Camera {self.camera_num} initialized: {self.resolution[0]}x{self.resolution[1]} @ {self.framerate}fps")
-        except Exception as e:
-            print(f"Failed to initialize camera: {e}")
-            raise
+        # Initialize picamera2 if available; else prepare OpenCV
+        self.output = StreamingOutput()
+        if PICAMERA_AVAILABLE:
+            try:
+                self.picam2 = Picamera2(self.camera_num)
+                video_config = self.picam2.create_video_configuration(
+                    main={"size": self.resolution, "format": "RGB888"},
+                    controls={"FrameRate": self.framerate}
+                )
+                self.picam2.configure(video_config)
+                print(f"PiCamera {self.camera_num} ready: {self.resolution[0]}x{self.resolution[1]} @ {self.framerate}fps")
+            except Exception as e:
+                self.picam2 = None
+                print(f"picamera2 init failed: {e}")
+                if not CV2_AVAILABLE:
+                    raise
+        if self.picam2 is None and CV2_AVAILABLE:
+            # OpenCV device; allow override via env CAMERA_DEVICE or use numeric index
+            dev = os.getenv("CAMERA_DEVICE", "/dev/video0")
+            try:
+                self.cap = cv2.VideoCapture(dev)
+                if not self.cap.isOpened():
+                    raise RuntimeError(f"Failed to open camera device {dev}")
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.resolution[0])
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.resolution[1])
+                self.cap.set(cv2.CAP_PROP_FPS, self.framerate)
+                print(f"OpenCV camera ready on {dev}: {self.resolution[0]}x{self.resolution[1]} @ {self.framerate}fps")
+            except Exception:
+                self.cap = None
+                raise
 
     def start(self):
         """Start the camera streaming."""
         with self._lock:
-            if self.is_running or not self.picam2:
+            if self.is_running:
                 return
-                
             try:
-                if self.use_mjpeg:
-                    encoder = MJPEGEncoder()
+                if self.picam2 is not None:
+                    encoder = MJPEGEncoder() if self.use_mjpeg else JpegEncoder()
+                    self.picam2.start_recording(encoder, FileOutput(self.output))
+                    self.is_running = True
+                    print(f"Camera streaming started (picamera2) on {self.camera_num}")
+                elif self.cap is not None and CV2_AVAILABLE:
+                    # Start a background thread to capture frames and encode to JPEG
+                    self.is_running = True
+                    def _cv_loop():
+                        try:
+                            interval = 1.0 / max(1, self.framerate)
+                            while self.is_running:
+                                ok, frame = self.cap.read()
+                                if not ok:
+                                    time.sleep(0.05)
+                                    continue
+                                # Ensure BGR->JPEG encode
+                                ok2, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+                                if ok2:
+                                    with self.output.condition:
+                                        self.output.frame = buf.tobytes()
+                                        self.output.condition.notify_all()
+                                time.sleep(interval)
+                        except Exception as e:
+                            print(f"OpenCV capture error: {e}")
+                    self._cv_thread = threading.Thread(target=_cv_loop, daemon=True)
+                    self._cv_thread.start()
+                    print("Camera streaming started (OpenCV)")
                 else:
-                    encoder = JpegEncoder()
-                    
-                self.picam2.start_recording(encoder, FileOutput(self.output))
-                self.is_running = True
-                print(f"Camera streaming started on port {self.camera_num}")
+                    raise RuntimeError("No camera backend available (picamera2 or OpenCV)")
             except Exception as e:
                 print(f"Failed to start camera: {e}")
                 raise
@@ -112,11 +148,20 @@ class CameraController:
     def stop(self):
         """Stop the camera streaming."""
         with self._lock:
-            if not self.is_running or not self.picam2:
+            if not self.is_running:
                 return
                 
             try:
-                self.picam2.stop_recording()
+                if self.picam2 is not None:
+                    self.picam2.stop_recording()
+                self.is_running = False
+                if self.cap is not None:
+                    try:
+                        self.cap.release()
+                    except Exception:
+                        pass
+                if self._cv_thread and self._cv_thread.is_alive():
+                    self._cv_thread.join(timeout=0.5)
                 self.is_running = False
                 print("Camera streaming stopped")
             except Exception as e:
@@ -225,9 +270,9 @@ def generate_frames():
 @router.get("/stream.mjpg")
 def video_feed():
     """MJPEG video streaming endpoint."""
-    if not PICAMERA_AVAILABLE:
+    if not (PICAMERA_AVAILABLE or CV2_AVAILABLE):
         return Response(
-            content="Camera not available - picamera2 not installed",
+            content="Camera not available - no backend present (picamera2/cv2)",
             media_type="text/plain",
             status_code=503
         )

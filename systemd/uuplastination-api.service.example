@@ -11,6 +11,8 @@ WorkingDirectory=/var/www/secure/uuplastination-secure
 Environment=PYTHONUNBUFFERED=1
 # Load env file created from .env
 EnvironmentFile=/var/www/secure/uuplastination-secure/.env
+# Ensure access to serial devices like /dev/ttyACM0
+SupplementaryGroups=dialout
 # Use venv python if available; otherwise set full path
 ExecStart=/var/www/secure/uuplastination-secure/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
 Restart=always

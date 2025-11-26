@@ -12,6 +12,7 @@ BASE = os.environ.get("VALIDATE_BASE", "http://127.0.0.1:8000")
 
 # Allow environment injection for expected host for context in PASS/FAIL display
 EXPECTED_LIVEKIT_HOST = os.environ.get("EXPECTED_LIVEKIT_HOST", "")
+ICE_LIST = os.environ.get("LIVEKIT_ICE_SERVERS", "")
 
 
 def get(path: str):
@@ -31,6 +32,18 @@ def tcp_check(url: str):
             return True, None
     except Exception as e:
         return False, str(e)
+
+
+def turn_targets(ice_list: str):
+    out = []
+    for raw in (p.strip() for p in ice_list.split(',') if p.strip()):
+        u = urlparse(raw if '://' in raw else 'stun://' + raw)
+        if u.scheme in ('turn', 'turns'):
+            port = u.port or (5349 if u.scheme == 'turns' else 3478)
+            host = u.hostname
+            if host:
+                out.append((u.scheme, host, port))
+    return out
 
 
 def main():
@@ -75,6 +88,15 @@ def main():
     # Disabled flag
     if h.get("disabled"):
         failures.append("WEBRTC_DISABLE is active")
+
+    # TURN reachability (basic TCP for turns:// targets)
+    ice_raw = ICE_LIST or ','.join((','.join(s.get('urls', [])) if isinstance(s.get('urls'), list) else s.get('urls', '')) for s in cfg.get('iceServers', []))
+    for scheme, host, port in turn_targets(ice_raw):
+        try:
+            with socket.create_connection((host, port), timeout=3):
+                print(f"TURN reachability: {scheme}://{host}:{port} -> OK")
+        except Exception as e:
+            failures.append(f"TURN not reachable: {scheme}://{host}:{port} ({e})")
 
     print("\nChecks:")
     for f in failures:
