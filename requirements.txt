@@ -16,3 +16,4 @@ aiohttp
 opencv-python ; platform_machine != 'armv6l'
 aiortc
 av
+pyserial
