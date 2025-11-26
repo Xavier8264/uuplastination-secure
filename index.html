@@ -142,7 +142,7 @@
           <div class="body">
             <div class="camera-wrap">
               <!-- MJPEG fallback stream (relative path so it works under /secure/) -->
-                  <img id="cam" alt="Camera stream" src="/camera/stream.mjpg" 
+                  <img id="cam" alt="Camera stream" src="${location.pathname.startsWith('/secure/')?'/secure':''}/camera/stream.mjpg" 
                     onload="if(!window._webrtcActive){const s=document.getElementById('cam-status');s.textContent='● MJPEG';s.className='badge';window._mjpegFirstFrameTs=Date.now();console.log('MJPEG stream loaded');}" 
                     onerror="this.dataset.err=1;const s=document.getElementById('cam-status');s.textContent='MJPEG Error';s.className='badge warn';console.error('MJPEG stream failed to load');" 
                     style="display:block">
@@ -474,8 +474,10 @@
       const videoEl = document.getElementById('tankStream');
       if(!videoEl) return;
       // Support both direct /live/ and prefixed /secure/live/ playlist locations
-      const primarySrc = '/live/cam.m3u8';
-      const fallbackSrc = '/secure/live/cam.m3u8';
+      // Base-aware HLS: prefer path under /secure when dashboard served there
+      const basePath = location.pathname.startsWith('/secure/') ? '/secure' : '';
+      const primarySrc = `${basePath}/live/cam.m3u8`;
+      const fallbackSrc = '/live/cam.m3u8'; // root fallback
       let src = primarySrc; // will switch to fallback if primary not found
 
       function setStatus(txt, cls){
