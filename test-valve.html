@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Valve API Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; max-width: 800px; margin: 0 auto; }
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; cursor: pointer; }
+        .success { background: #4CAF50; color: white; padding: 10px; margin: 10px 0; }
+        .error { background: #f44336; color: white; padding: 10px; margin: 10px 0; }
+        .info { background: #2196F3; color: white; padding: 10px; margin: 10px 0; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Valve API Test Page</h1>
+    
+    <div id="path-info" class="info"></div>
+    
+    <h2>Test Buttons</h2>
+    <button onclick="testOpen()">Open Valve (send 'r')</button>
+    <button onclick="testClose()">Close Valve (send 'l')</button>
+    <button onclick="testHealth()">Test Health</button>
+    
+    <h2>Results</h2>
+    <div id="results"></div>
+    
+    <script>
+        const BASE = location.pathname.startsWith('/secure/') ? '/secure' : '';
+        const pathInfo = document.getElementById('path-info');
+        pathInfo.innerHTML = `
+            <strong>Path Detection:</strong><br>
+            Current pathname: ${location.pathname}<br>
+            Detected BASE: ${BASE || '(root)'}<br>
+            Open URL: ${BASE}/api/valve/open<br>
+            Close URL: ${BASE}/api/valve/close<br>
+            Health URL: ${BASE}/api/valve/health
+        `;
+        
+        const results = document.getElementById('results');
+        
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = message;
+            results.insertBefore(div, results.firstChild);
+        }
+        
+        async function testOpen() {
+            log('Testing Open Valve...', 'info');
+            try {
+                const url = `${BASE}/api/valve/open`;
+                log(`Sending POST to: ${url}`, 'info');
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                log(`Response status: ${response.status} ${response.statusText}`, 
+                    response.ok ? 'success' : 'error');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Response data: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    const text = await response.text();
+                    log(`Error response: ${text.substring(0, 200)}`, 'error');
+                }
+            } catch (error) {
+                log(`Network error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testClose() {
+            log('Testing Close Valve...', 'info');
+            try {
+                const url = `${BASE}/api/valve/close`;
+                log(`Sending POST to: ${url}`, 'info');
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                log(`Response status: ${response.status} ${response.statusText}`, 
+                    response.ok ? 'success' : 'error');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Response data: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    const text = await response.text();
+                    log(`Error response: ${text.substring(0, 200)}`, 'error');
+                }
+            } catch (error) {
+                log(`Network error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testHealth() {
+            log('Testing Health Endpoint...', 'info');
+            try {
+                const url = `${BASE}/api/valve/health`;
+                log(`Sending GET to: ${url}`, 'info');
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                log(`Response status: ${response.status} ${response.statusText}`, 
+                    response.ok ? 'success' : 'error');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Response data: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    const text = await response.text();
+                    log(`Error response: ${text.substring(0, 200)}`, 'error');
+                }
+            } catch (error) {
+                log(`Network error: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
