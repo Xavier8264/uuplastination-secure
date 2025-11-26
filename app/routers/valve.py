@@ -1,112 +1,51 @@
-from __future__ import annotations
+"""Simple valve control API - sends 'r' and 'l' through serial port.
 
-"""Valve control (one-way serial).
+This API sends single characters to /dev/ttyACM0 based on button presses:
+- 'r' for open valve
+- 'l' for close valve
 
-This router implements a WRITE-ONLY protocol to a microcontroller that listens
-on a serial device (default: /dev/ttyACM0). The Raspberry Pi sends single
-characters 'r' and 'l' (configurable) to indicate valve motion commands. No
-response is expected; there is intentionally NO read/parsing logic here.
-
-If future two-way communication is added, a read loop or async background task
-could be introduced without changing the outward-facing API.
+One-way communication only - no reading from the serial port.
 """
 
 import os
-import time
-from typing import Dict, Optional
+from typing import Dict
 
 from fastapi import APIRouter, HTTPException
 
-try:  # pragma: no cover - import may fail off-device
-    import serial  # type: ignore
-except Exception:  # pragma: no cover
-    serial = None  # type: ignore
+try:
+    import serial
+except ImportError:
+    serial = None
 
 router = APIRouter(prefix="/api/valve", tags=["valve"])
 
-# --- Configuration ---------------------------------------------------------
-DEVICE_PATH = os.getenv("VALVE_SERIAL_DEVICE", "/dev/ttyACM0")  # ensure spelling: ACM not AMC
+# Configuration
+DEVICE_PATH = "/dev/ttyACM0"
 BAUD_RATE = int(os.getenv("VALVE_SERIAL_BAUD", "115200"))
-WRITE_TIMEOUT = float(os.getenv("VALVE_WRITE_TIMEOUT", "0.25"))  # lower for snappier failures
-OPEN_CHAR = os.getenv("VALVE_OPEN_CHAR", "r")
-CLOSE_CHAR = os.getenv("VALVE_CLOSE_CHAR", "l")
-
-_valve_position = int(os.getenv("VALVE_START_PERCENT", "50"))  # purely virtual feedback
-STEP_PERCENT = int(os.getenv("VALVE_STEP_PERCENT", "5"))
-REPORT_POSITION = os.getenv("VALVE_REPORT_POSITION", "1") not in ("0", "false", "False")
+WRITE_TIMEOUT = 0.5
 
 def _send_char(ch: str) -> None:
-    """Write a single character to the serial port. Opens, writes, closes immediately.
-    This ensures we don't hold the port open and avoids 'device busy' errors.
-    """
+    """Send a single character through the serial port."""
     if serial is None:
         raise HTTPException(status_code=500, detail="pyserial not installed")
     
     ser = None
     try:
-        # Open with exclusive access, write immediately, close
-        # timeout=0 means non-blocking (we never read)
         ser = serial.Serial(
             DEVICE_PATH,
             BAUD_RATE,
             timeout=0,
             write_timeout=WRITE_TIMEOUT,
-            exclusive=True,  # Prevent other processes from opening simultaneously
         )
-        time.sleep(0.01)  # Brief settle time
         ser.write(ch.encode("utf-8"))
-        ser.flush()  # Ensure data is transmitted before closing
+        ser.flush()
     except serial.SerialException as e:
-        # Log the error for debugging
-        print(f"Serial error: {str(e)}")
-        if "busy" in str(e).lower():
-            raise HTTPException(
-                status_code=503, 
-                detail="Serial device is busy, please try again later."
-            )
-        raise HTTPException(status_code=500, detail="An error occurred with the serial connection.")
+        error_msg = str(e).lower()
+        if "busy" in error_msg or "permission denied" in error_msg:
+            raise HTTPException(status_code=503, detail=f"Serial port error: {e}")
+        raise HTTPException(status_code=500, detail=f"Serial communication failed: {e}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to write to serial: {e}")
-    finally:
-        if ser and ser.is_open:
-            try:
-                ser.close()
-            except Exception:
-                pass  # Best effort cleanup
-
-@router.get("/health")
-def valve_health() -> Dict[str, object]:
-    """Report usability of the serial device without implying responses."""
-    if serial is None:
-        raise HTTPException(status_code=500, detail="pyserial not installed")
-    
-    ser = None
-    try:
-        # Quick test: open and close to verify port is accessible
-        ser = serial.Serial(
-            DEVICE_PATH,
-            BAUD_RATE,
-            timeout=0,
-            write_timeout=WRITE_TIMEOUT,
-            exclusive=True,
-        )
-        result = {
-            "device": DEVICE_PATH,
-            "accessible": True,
-            "baud": BAUD_RATE,
-            "one_way": True,
-        }
-        ser.close()
-        return result
-    except serial.SerialException as e:
-        if "busy" in str(e).lower():
-            raise HTTPException(
-                status_code=503, 
-                detail=f"Port {DEVICE_PATH} is busy. Check: lsof {DEVICE_PATH}"
-            )
-        raise HTTPException(status_code=503, detail=f"Serial error: {e}")
-    except Exception as e:  # pragma: no cover
-        raise HTTPException(status_code=503, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
     finally:
         if ser and ser.is_open:
             try:
@@ -114,44 +53,42 @@ def valve_health() -> Dict[str, object]:
             except Exception:
                 pass
 
-@router.get("/position")
-def valve_position() -> Dict[str, Optional[int]]:
-    if not REPORT_POSITION:
-        return {"position": None}
-    return {"position": _valve_position}
-
 @router.post("/open")
-def valve_open() -> Dict[str, object]:
-    global _valve_position
-    if REPORT_POSITION:
-        _valve_position = min(100, _valve_position + STEP_PERCENT)
-    _send_char(OPEN_CHAR)
-    return {
-        "result": "open-sent",
-        "char": OPEN_CHAR,
-        "position": _valve_position if REPORT_POSITION else None,
-    }
+def valve_open() -> Dict[str, str]:
+    """Send 'r' character to open the valve."""
+    _send_char("r")
+    return {"status": "success", "action": "open", "char_sent": "r"}
 
 @router.post("/close")
-def valve_close() -> Dict[str, object]:
-    global _valve_position
-    if REPORT_POSITION:
-        _valve_position = max(0, _valve_position - STEP_PERCENT)
-    _send_char(CLOSE_CHAR)
-    return {
-        "result": "close-sent",
-        "char": CLOSE_CHAR,
-        "position": _valve_position if REPORT_POSITION else None,
-    }
+def valve_close() -> Dict[str, str]:
+    """Send 'l' character to close the valve."""
+    _send_char("l")
+    return {"status": "success", "action": "close", "char_sent": "l"}
 
-@router.post("/raw")
-def valve_raw(char: str) -> Dict[str, object]:
-    if len(char) != 1:
-        raise HTTPException(status_code=400, detail="char must be a single character")
-    _send_char(char)
-    return {"result": "raw-sent", "char": char}
-
-# --- Configuration Validation ------------------------------------------------
-if not os.path.exists(DEVICE_PATH):
-    raise RuntimeError(f"Serial device not found: {DEVICE_PATH}")
+@router.get("/health")
+def valve_health() -> Dict[str, object]:
+    """Check if the serial device is accessible."""
+    if serial is None:
+        raise HTTPException(status_code=500, detail="pyserial not installed")
+    
+    if not os.path.exists(DEVICE_PATH):
+        raise HTTPException(status_code=503, detail=f"Serial device not found: {DEVICE_PATH}")
+    
+    ser = None
+    try:
+        ser = serial.Serial(DEVICE_PATH, BAUD_RATE, timeout=0, write_timeout=WRITE_TIMEOUT)
+        ser.close()
+        return {
+            "status": "ok",
+            "device": DEVICE_PATH,
+            "baud_rate": BAUD_RATE,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Cannot access serial port: {e}")
+    finally:
+        if ser and ser.is_open:
+            try:
+                ser.close()
+            except Exception:
+                pass
 
