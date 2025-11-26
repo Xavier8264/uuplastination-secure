@@ -142,13 +142,16 @@
           <div class="body">
             <div class="camera-wrap">
               <!-- MJPEG fallback stream (relative path so it works under /secure/) -->
-              <img id="cam" alt="Camera stream" src="camera/stream.mjpg" onload="if(!window._webrtcActive){const s=document.getElementById('cam-status');s.textContent='● MJPEG';s.className='badge';}" onerror="this.dataset.err=1;document.getElementById('cam-status').textContent='Disconnected';document.getElementById('cam-status').className='badge warn'" style="display:block">
+              <img id="cam" alt="Camera stream" src="camera/stream.mjpg" 
+                   onload="if(!window._webrtcActive){const s=document.getElementById('cam-status');s.textContent='● MJPEG';s.className='badge';console.log('MJPEG stream loaded');}" 
+                   onerror="this.dataset.err=1;const s=document.getElementById('cam-status');s.textContent='MJPEG Error';s.className='badge warn';console.error('MJPEG stream failed to load');" 
+                   style="display:block">
               <!-- WebRTC live video element (hidden until connected) -->
               <video id="webrtcVideo" autoplay playsinline muted style="display:none"></video>
               <!-- Lightweight overlay canvas for future detections -->
               <canvas id="overlay"></canvas>
               <div style="position:absolute; left:12px; bottom:12px; display:flex; gap:8px">
-                <span class="badge mono" id="cam-meta">1920×1080 • 30 FPS</span>
+                <span class="badge mono" id="cam-meta">Initializing...</span>
                 <span class="badge mono" id="clock"></span>
               </div>
             </div>
@@ -538,22 +541,40 @@
       const { Room, RoomEvent } = window.livekitClient || {};
 
       if(!Room){
-        console.warn('LiveKit client not loaded');
+        console.warn('LiveKit client not loaded; using MJPEG only');
+        statusEl.textContent = '● MJPEG';
+        statusEl.className = 'badge';
         return; // keep MJPEG
       }
 
       let backoff = 2000; // start at 2s
       let room;
+      let retryTimer;
+      let connectionAttempts = 0;
+      const MAX_RETRY_ATTEMPTS = 10; // Stop retrying after 10 attempts
 
       async function tryConnect(){
-        try{
-          statusEl.textContent = 'Connecting…';
+        connectionAttempts++;
+        
+        if (connectionAttempts > MAX_RETRY_ATTEMPTS) {
+          console.log('WebRTC max retry attempts reached; staying with MJPEG');
+          statusEl.textContent = '● MJPEG (WebRTC unavailable)';
           statusEl.className = 'badge';
+          window._webrtcActive = false;
+          return;
+        }
+        
+        try{
+          statusEl.textContent = `Connecting WebRTC (${connectionAttempts})...`;
+          statusEl.className = 'badge';
+          
           const cfgResp = await fetch(`${BASE}/webrtc/config`, {cache:'no-store'});
           if(!cfgResp.ok) throw new Error('config http '+cfgResp.status);
           const cfg = await cfgResp.json();
+          
           if(cfg.disabled){
             // WebRTC disabled by server-side flag; keep MJPEG
+            console.log('WebRTC disabled by server config');
             window._webrtcActive = false;
             videoEl.style.display='none';
             imgEl.style.display='block';
@@ -561,18 +582,25 @@
             statusEl.className='badge';
             return;
           }
-          if(!cfg.host){ throw new Error('Missing host in /webrtc/config'); }
+          
+          if(!cfg.host){ 
+            throw new Error('Missing host in /webrtc/config'); 
+          }
+          
           let host = cfg.host;
           if(typeof host === 'string' && !/^https?:\/\//i.test(host)){
             host = window.location.origin.replace(/\/$/, '') + (host.startsWith('/') ? host : ('/'+host));
           }
+          
           const tokenResp = await fetch(`${BASE}/webrtc/token?room=plastination&role=viewer`, {cache:'no-store'});
           if(!tokenResp.ok) throw new Error('token http '+tokenResp.status);
           const { token } = await tokenResp.json();
+          
           // Enable adaptive stream for better bandwidth behavior
           room = new Room({ adaptiveStream: true, dynacast: true });
           window._livekitRoom = room; // expose for debugging
           let haveVideo = false;
+          
           room.on(RoomEvent.TrackSubscribed, (track, publication, _participant) => {
             try {
               if(publication.kind === 'video' && track){
@@ -580,14 +608,20 @@
                 track.attach(videoEl);
                 videoEl.style.display='block';
                 imgEl.style.display='none';
-                statusEl.textContent='● WebRTC';
+                statusEl.textContent='● WebRTC Live';
                 statusEl.className='badge success';
                 window._webrtcActive = true;
                 haveVideo = true;
+                connectionAttempts = 0; // Reset on success
+                console.log('WebRTC video track subscribed successfully');
               }
-            } catch(e){ console.warn('Attach error', e); }
+            } catch(e){ 
+              console.warn('WebRTC track attach error', e); 
+            }
           });
-          room.on(RoomEvent.Disconnected, () => {
+          
+          room.on(RoomEvent.Disconnected, (reason) => {
+            console.log('WebRTC disconnected:', reason);
             // Restore MJPEG on disconnect
             videoEl.style.display='none';
             imgEl.style.display='block';
@@ -596,25 +630,49 @@
             window._webrtcActive = false;
             scheduleRetry();
           });
+          
+          room.on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
+            if (quality === 'poor') {
+              console.warn('WebRTC connection quality is poor');
+            }
+          });
 
           await room.connect(host, token);
-          // If no video appears within 4s, keep MJPEG visible and schedule retry
-          setTimeout(()=>{ if(!haveVideo){ scheduleRetry(); } }, 4000);
+          console.log('WebRTC room connected, waiting for video track...');
+          
+          // If no video appears within 6s, keep MJPEG visible and schedule retry
+          setTimeout(()=>{ 
+            if(!haveVideo){ 
+              console.log('No video track received within timeout');
+              scheduleRetry(); 
+            } 
+          }, 6000);
+          
         }catch(err){
-          console.warn('WebRTC connect failed:', err);
+          console.warn('WebRTC connect failed (attempt ' + connectionAttempts + '):', err);
+          // Ensure MJPEG is visible
+          videoEl.style.display='none';
+          imgEl.style.display='block';
+          window._webrtcActive = false;
           scheduleRetry();
         }
       }
 
       function scheduleRetry(){
-        statusEl.textContent = 'Retrying…';
+        if (retryTimer) clearTimeout(retryTimer);
+        
+        statusEl.textContent = connectionAttempts >= MAX_RETRY_ATTEMPTS 
+          ? '● MJPEG' 
+          : 'Retrying WebRTC...';
         statusEl.className = 'badge';
-        setTimeout(()=>{
-          backoff = Math.min(backoff*1.7, 20000);
+        
+        retryTimer = setTimeout(()=>{
+          backoff = Math.min(backoff * 1.5, 30000); // Max 30s backoff
           tryConnect();
         }, backoff);
       }
 
+      // Start initial connection
       tryConnect();
 
       // Periodic camera status poll to keep badge accurate when on MJPEG
@@ -623,26 +681,39 @@
           const r = await fetch(`${BASE}/camera/status`, {cache:'no-store'});
           if(!r.ok) return;
           const s = await r.json();
+          
           if(window._webrtcActive) return; // don't override when WebRTC is active
+          
           if(s && s.available){
-            statusEl.textContent = s.running ? '● MJPEG' : 'Standby';
+            statusEl.textContent = s.running ? '● MJPEG' : 'Camera Standby';
             statusEl.className = s.running ? 'badge' : 'badge warn';
             // Update camera metadata from status if available
             if (s.resolution && s.framerate && camMetaEl) {
               camMetaEl.textContent = `${s.resolution} • ${s.framerate} FPS`;
+              if (s.backend) {
+                camMetaEl.textContent += ` • ${s.backend}`;
+              }
             }
           }else{
-            statusEl.textContent = 'Disconnected';
+            statusEl.textContent = 'Camera Unavailable';
             statusEl.className = 'badge warn';
+            if (camMetaEl) {
+              camMetaEl.textContent = 'No camera detected';
+            }
           }
-        }catch(_){/* ignore */}
+        }catch(err){
+          console.warn('Camera status poll failed:', err);
+        }
       }
+      
       setInterval(pollCamera, 5000);
+      pollCamera(); // Initial poll
+      
       // Also reflect WebRTC track dimensions when available
       if (videoEl) {
         videoEl.addEventListener('loadedmetadata', () => {
           if (camMetaEl && videoEl.videoWidth && videoEl.videoHeight) {
-            camMetaEl.textContent = `${videoEl.videoWidth}×${videoEl.videoHeight} • WebRTC`;
+            camMetaEl.textContent = `${videoEl.videoWidth}×${videoEl.videoHeight} • WebRTC Live`;
           }
         });
       }

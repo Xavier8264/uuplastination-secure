@@ -178,12 +178,21 @@ class CameraController:
 
     def status(self) -> dict:
         """Get camera status."""
+        backend = "none"
+        if self.picam2 is not None:
+            backend = "picamera2"
+        elif self.cap is not None:
+            backend = "opencv"
+        
         return {
             "running": self.is_running,
             "camera_num": self.camera_num,
             "resolution": f"{self.resolution[0]}x{self.resolution[1]}",
             "framerate": self.framerate,
-            "available": PICAMERA_AVAILABLE and self.picam2 is not None,
+            "available": (self.picam2 is not None) or (self.cap is not None),
+            "backend": backend,
+            "picamera2_available": PICAMERA_AVAILABLE,
+            "opencv_available": CV2_AVAILABLE,
         }
 
 
@@ -244,27 +253,43 @@ def generate_frames():
     # Ensure camera is started
     if not _camera.is_running:
         try:
+            print("Auto-starting camera for stream request...")
             _camera.start()
+            # Give camera a moment to stabilize
+            import time
+            time.sleep(0.3)
         except Exception as e:
             print(f"Failed to start camera in stream: {e}")
-            # Send a simple error frame
+            # Send a simple error frame as an image
             yield b'--FRAME\r\n'
             yield b'Content-Type: text/plain\r\n\r\n'
-            yield b'Camera unavailable\r\n'
+            yield f'Camera unavailable: {str(e)}\r\n'.encode()
             return
     
     try:
+        frame_count = 0
         while True:
             frame = _camera.get_frame()
             if frame:
+                frame_count += 1
                 yield b'--FRAME\r\n'
                 # Including Content-Length improves compatibility with some proxies/clients
                 header = f"Content-Type: image/jpeg\r\nContent-Length: {len(frame)}\r\n\r\n".encode()
                 yield header
                 yield frame
                 yield b'\r\n'
+                
+                # Log periodic confirmation
+                if frame_count % 300 == 0:  # Every ~10 seconds at 30fps
+                    print(f"Camera stream active: {frame_count} frames delivered")
+            else:
+                # No frame available, brief pause
+                import time
+                time.sleep(0.01)
     except GeneratorExit:
-        print("Client disconnected from stream")
+        print("Client disconnected from camera stream")
+    except Exception as e:
+        print(f"Error in camera stream: {e}")
 
 
 @router.get("/stream.mjpg")
@@ -272,23 +297,34 @@ def video_feed():
     """MJPEG video streaming endpoint."""
     if not (PICAMERA_AVAILABLE or CV2_AVAILABLE):
         return Response(
-            content="Camera not available - no backend present (picamera2/cv2)",
+            content="Camera not available - no backend present (picamera2 or OpenCV)\n"
+                    "Install picamera2: pip install picamera2\n"
+                    "Or install OpenCV: pip install opencv-python",
             media_type="text/plain",
             status_code=503
         )
-    # Ensure running (auto-start safeguard)
-    if not _camera.is_running:
-        try:
-            _camera.start()
-        except Exception as e:
-            return Response(content=f"Failed to start camera: {e}", media_type="text/plain", status_code=500)
+    
+    # Check if camera was initialized
+    if _camera.picam2 is None and _camera.cap is None:
+        return Response(
+            content="Camera hardware not detected. Check:\n"
+                    "- Camera is properly connected\n"
+                    "- Camera is enabled in raspi-config\n"
+                    "- Device permissions (user in video group)\n"
+                    f"- Device file exists: ls -la /dev/video*",
+            media_type="text/plain",
+            status_code=503
+        )
+    
+    # Stream will auto-start camera if needed
     return StreamingResponse(
         generate_frames(),
         media_type='multipart/x-mixed-replace; boundary=FRAME',
         headers={
             # Prevent any client/proxy caching of the stream
-            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
             "Pragma": "no-cache",
+            "Expires": "0",
             # Hint for nginx to avoid buffering this upstream
             "X-Accel-Buffering": "no",
         },
@@ -300,11 +336,13 @@ def get_snapshot():
     """Get a single JPEG snapshot from the camera."""
     if not _camera.is_running:
         try:
+            print("Auto-starting camera for snapshot request...")
             _camera.start()
             time.sleep(0.5)  # Give camera time to warm up
         except Exception as e:
             return Response(
-                content=f"Camera unavailable: {e}",
+                content=f"Camera unavailable: {e}\n"
+                        f"Available backends: picamera2={PICAMERA_AVAILABLE}, opencv={CV2_AVAILABLE}",
                 media_type="text/plain",
                 status_code=503,
                 headers={
@@ -313,24 +351,29 @@ def get_snapshot():
                 },
             )
     
-    frame = _camera.get_frame()
-    if frame:
-        return Response(
-            content=frame,
-            media_type="image/jpeg",
-            headers={
-                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-                "Pragma": "no-cache",
-                "X-Accel-Buffering": "no",
-            },
-        )
-    else:
-        return Response(
-            content="No frame available",
-            media_type="text/plain",
-            status_code=503,
-            headers={
-                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-                "Pragma": "no-cache",
-            },
-        )
+    # Try to get a frame with timeout
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        frame = _camera.get_frame()
+        if frame:
+            return Response(
+                content=frame,
+                media_type="image/jpeg",
+                headers={
+                    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+                    "Pragma": "no-cache",
+                    "Expires": "0",
+                    "X-Accel-Buffering": "no",
+                },
+            )
+        time.sleep(0.1)
+    
+    return Response(
+        content="No frame available from camera after multiple attempts",
+        media_type="text/plain",
+        status_code=503,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+            "Pragma": "no-cache",
+        },
+    )
