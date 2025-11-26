@@ -142,10 +142,10 @@
           <div class="body">
             <div class="camera-wrap">
               <!-- MJPEG fallback stream (relative path so it works under /secure/) -->
-              <img id="cam" alt="Camera stream" src="camera/stream.mjpg" 
-                   onload="if(!window._webrtcActive){const s=document.getElementById('cam-status');s.textContent='● MJPEG';s.className='badge';console.log('MJPEG stream loaded');}" 
-                   onerror="this.dataset.err=1;const s=document.getElementById('cam-status');s.textContent='MJPEG Error';s.className='badge warn';console.error('MJPEG stream failed to load');" 
-                   style="display:block">
+                  <img id="cam" alt="Camera stream" src="/camera/stream.mjpg" 
+                    onload="if(!window._webrtcActive){const s=document.getElementById('cam-status');s.textContent='● MJPEG';s.className='badge';window._mjpegFirstFrameTs=Date.now();console.log('MJPEG stream loaded');}" 
+                    onerror="this.dataset.err=1;const s=document.getElementById('cam-status');s.textContent='MJPEG Error';s.className='badge warn';console.error('MJPEG stream failed to load');" 
+                    style="display:block">
               <!-- WebRTC live video element (hidden until connected) -->
               <video id="webrtcVideo" autoplay playsinline muted style="display:none"></video>
               <!-- Lightweight overlay canvas for future detections -->
@@ -473,7 +473,10 @@
       const metaEl = document.getElementById('hls-meta');
       const videoEl = document.getElementById('tankStream');
       if(!videoEl) return;
-      const src = '/live/cam.m3u8'; // playlist served by nginx alias
+      // Support both direct /live/ and prefixed /secure/live/ playlist locations
+      const primarySrc = '/live/cam.m3u8';
+      const fallbackSrc = '/secure/live/cam.m3u8';
+      let src = primarySrc; // will switch to fallback if primary not found
 
       function setStatus(txt, cls){
         statusEl.textContent = txt;
@@ -484,10 +487,21 @@
         try {
           const r = await fetch(src, { method:'GET', cache:'no-store' });
           if(r.ok){
-            metaEl.textContent = 'HLS • playlist OK';
+            metaEl.textContent = src === primarySrc ? 'HLS • playlist OK' : 'HLS • fallback playlist OK';
             return true;
           }
         } catch(e) {}
+        if(src === primarySrc){
+          // Try fallback path once
+          src = fallbackSrc;
+          try {
+            const r2 = await fetch(src, { method:'GET', cache:'no-store' });
+            if(r2.ok){
+              metaEl.textContent = 'HLS • fallback playlist OK';
+              return true;
+            }
+          } catch(e2) {}
+        }
         return false;
       }
 
@@ -673,25 +687,27 @@
       }
 
       // Start initial connection
+      window._pageLoadTs = Date.now();
       tryConnect();
 
       // Periodic camera status poll to keep badge accurate when on MJPEG
       async function pollCamera(){
+        let statusData;
         try{
           const r = await fetch(`${BASE}/camera/status`, {cache:'no-store'});
           if(!r.ok) return;
-          const s = await r.json();
+          statusData = await r.json();
           
           if(window._webrtcActive) return; // don't override when WebRTC is active
           
-          if(s && s.available){
-            statusEl.textContent = s.running ? '● MJPEG' : 'Camera Standby';
-            statusEl.className = s.running ? 'badge' : 'badge warn';
+          if(statusData && statusData.available){
+            statusEl.textContent = statusData.running ? '● MJPEG' : 'Camera Standby';
+            statusEl.className = statusData.running ? 'badge' : 'badge warn';
             // Update camera metadata from status if available
-            if (s.resolution && s.framerate && camMetaEl) {
-              camMetaEl.textContent = `${s.resolution} • ${s.framerate} FPS`;
-              if (s.backend) {
-                camMetaEl.textContent += ` • ${s.backend}`;
+            if (statusData.resolution && statusData.framerate && camMetaEl) {
+              camMetaEl.textContent = `${statusData.resolution} • ${statusData.framerate} FPS`;
+              if (statusData.backend) {
+                camMetaEl.textContent += ` • ${statusData.backend}`;
               }
             }
           }else{
@@ -703,6 +719,12 @@
           }
         }catch(err){
           console.warn('Camera status poll failed:', err);
+        }
+        // Initialization hint if MJPEG hasn't produced a frame
+        if(!window._webrtcActive && (!statusData || !statusData.running)){
+          if(Date.now() - window._pageLoadTs > 5000 && camMetaEl && !window._mjpegFirstFrameTs){
+            camMetaEl.textContent = 'Waiting for MJPEG… (open /camera/stream.mjpg directly)';
+          }
         }
       }
       
