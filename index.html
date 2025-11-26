@@ -145,7 +145,7 @@
                   <!-- NOTE: src will be set dynamically using BASE; literal JS template removed -->
                   <img id="cam" alt="Camera stream" src="" 
                     onload="if(!window._webrtcActive){const s=document.getElementById('cam-status');s.textContent='● MJPEG';s.className='badge';window._mjpegFirstFrameTs=Date.now();console.log('MJPEG stream loaded');}" 
-                    onerror="this.dataset.err=1;const s=document.getElementById('cam-status');s.textContent='MJPEG Error';s.className='badge warn';console.error('MJPEG stream failed to load');" 
+                    onerror="this.dataset.err=1;const s=document.getElementById('cam-status');s.textContent='MJPEG Error – check camera connection or backend logs.';s.className='badge warn';console.error('MJPEG stream failed to load');" 
                     style="display:block">
               <!-- WebRTC live video element (hidden until connected) -->
               <video id="webrtcVideo" autoplay playsinline muted style="display:none"></video>
@@ -322,9 +322,15 @@
 
     // --- Camera bubble-detection chip (simulated) ---
     const bubbleChip = document.getElementById('bubble-chip');
+    // If real bubble data available, fetch and display it here
+    // Otherwise, clarify as simulated
+    let bubbleSimNoticeShown = false;
     setInterval(()=>{
       const n = Math.floor(Math.random()*5);
-      bubbleChip.textContent = `${n} bubble${n===1?'':'s'} detected`;
+      bubbleChip.textContent = `${n} bubble${n===1?'':'s'} detected${bubbleSimNoticeShown ? ' (simulated)' : ''}`;
+      if (!bubbleSimNoticeShown) {
+        bubbleSimNoticeShown = true;
+      }
     }, 2000);
 
     // --- Valve control (simplified: only Open/Close) ---
@@ -544,7 +550,7 @@
             const txt = await textResp.text();
             const segmentCount = (txt.match(/\.ts\n?/g)||[]).length;
             if(segmentCount === 0){
-              setStatus('Playlist OK • no segments yet', 'warn');
+              setStatus('Playlist OK • no segments yet. Waiting for live stream. If this persists, check publisher and network.', 'warn');
               // Retry later awaiting publisher
               setTimeout(start, 5000);
               return;
@@ -764,7 +770,7 @@
         // Initialization hint if MJPEG hasn't produced a frame
         if(!window._webrtcActive && (!statusData || !statusData.running)){
           if(Date.now() - window._pageLoadTs > 5000 && camMetaEl && !window._mjpegFirstFrameTs){
-            camMetaEl.textContent = 'Waiting for MJPEG… (open /camera/stream.mjpg directly)';
+            camMetaEl.textContent = 'Camera initializing. If this persists, check hardware and backend status.';
           }
         }
       }
