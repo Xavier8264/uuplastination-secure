@@ -142,7 +142,8 @@
           <div class="body">
             <div class="camera-wrap">
               <!-- MJPEG fallback stream (relative path so it works under /secure/) -->
-                  <img id="cam" alt="Camera stream" src="${location.pathname.startsWith('/secure/')?'/secure':''}/camera/stream.mjpg" 
+                  <!-- NOTE: src will be set dynamically using BASE; literal JS template removed -->
+                  <img id="cam" alt="Camera stream" src="" 
                     onload="if(!window._webrtcActive){const s=document.getElementById('cam-status');s.textContent='● MJPEG';s.className='badge';window._mjpegFirstFrameTs=Date.now();console.log('MJPEG stream loaded');}" 
                     onerror="this.dataset.err=1;const s=document.getElementById('cam-status');s.textContent='MJPEG Error';s.className='badge warn';console.error('MJPEG stream failed to load');" 
                     style="display:block">
@@ -276,6 +277,28 @@
       // Choose ws/wss automatically if used in future
       bubblesWS:  `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${BASE}/camera/stream`,
     };
+    // Assign MJPEG src after BASE resolved
+    document.addEventListener('DOMContentLoaded', () => {
+      const camImg = document.getElementById('cam');
+      if (camImg) {
+        camImg.src = `${BASE}/camera/stream.mjpg`;
+        // If initial load errors, attempt a few timed retries
+        let mjpegRetries = 0;
+        const maxRetries = 5;
+        function retryMJPEG(){
+          if(window._webrtcActive) return; // skip if WebRTC took over
+            if(mjpegRetries >= maxRetries) return;
+            if(camImg.dataset.err){
+              mjpegRetries++;
+              console.log('Retrying MJPEG load, attempt', mjpegRetries);
+              camImg.removeAttribute('data-err');
+              camImg.src = `${BASE}/camera/stream.mjpg?ts=${Date.now()}`; // cache-bust
+              setTimeout(retryMJPEG, 3000);
+            }
+        }
+        setTimeout(retryMJPEG, 3000);
+      }
+    });
     // Auth token for valve API (set VALVE_API_TOKEN env to match). Replace placeholder.
     const VALVE_TOKEN = "CHANGE_ME_TOKEN";
 
@@ -510,9 +533,25 @@
       async function start(){
         const ready = await checkHead();
         if(!ready){
-          setStatus('Waiting…', 'warn');
+          setStatus('Waiting for playlist…', 'warn');
           setTimeout(start, 3000);
           return;
+        }
+        // Inspect playlist for segments
+        try {
+          const textResp = await fetch(src + '?inspect=' + Date.now(), {cache:'no-store'});
+          if(textResp.ok){
+            const txt = await textResp.text();
+            const segmentCount = (txt.match(/\.ts\n?/g)||[]).length;
+            if(segmentCount === 0){
+              setStatus('Playlist OK • no segments yet', 'warn');
+              // Retry later awaiting publisher
+              setTimeout(start, 5000);
+              return;
+            }
+          }
+        } catch(e) {
+          console.log('Playlist inspection failed', e);
         }
         if(window.Hls && window.Hls.isSupported()){
           const hls = new window.Hls({
@@ -522,7 +561,7 @@
           });
           hls.on(window.Hls.Events.ERROR, (_, data) => {
             if(data && data.fatal){
-              setStatus('Error – retrying', 'warn');
+              setStatus('HLS fatal error – retrying', 'warn');
               hls.destroy();
               setTimeout(start, 3000);
             }
