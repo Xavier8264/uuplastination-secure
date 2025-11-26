@@ -7,7 +7,12 @@ echo "========================================="
 echo ""
 
 echo "1. Service Status:"
-systemctl is-active uuplastination-api && echo "   ✓ Service is ACTIVE" || echo "   ✗ Service is NOT running"
+if systemctl is-active uuplastination-api >/dev/null; then
+    echo "   ✓ Service is ACTIVE"
+else
+    echo "   ✗ Service is NOT running"
+    systemctl status uuplastination-api --no-pager | head -10 | sed 's/^/   /'
+fi
 echo ""
 
 echo "2. Process Check:"
@@ -20,28 +25,33 @@ fi
 echo ""
 
 echo "3. Port 8000 Check:"
-if ss -tuln | grep -q ":8000 "; then
-    echo "   ✓ Port 8000 is listening"
+echo "3. Port 8899 Check:"
+if ss -tuln | grep -q ":8899 "; then
+    echo "   ✓ Port 8899 is listening"
 else
-    echo "   ✗ Port 8000 is NOT listening"
+    echo "   ✗ Port 8899 is NOT listening"
 fi
 echo ""
 
 echo "4. API Endpoint Tests:"
+API_PORT=8899
+API_URL="http://127.0.0.1:$API_PORT"
 echo "   Testing /api/valve/open..."
-OPEN_RESP=$(curl -s -X POST http://127.0.0.1:8000/api/valve/open 2>&1)
-if [ "$OPEN_RESP" = '"OK"' ]; then
-    echo "   ✓ Valve OPEN: $OPEN_RESP"
+OPEN_RESP=$(curl -s --max-time 3 -X POST "$API_URL/api/valve/open" -w "%{http_code}" -o /tmp/open_resp.txt)
+OPEN_BODY=$(cat /tmp/open_resp.txt)
+if [ "$OPEN_RESP" = "200" ] && [ "$OPEN_BODY" = '"OK"' ]; then
+    echo "   ✓ Valve OPEN: $OPEN_BODY"
 else
-    echo "   ✗ Valve OPEN failed: $OPEN_RESP"
+    echo "   ✗ Valve OPEN failed: HTTP $OPEN_RESP, Body: $OPEN_BODY"
 fi
 
 echo "   Testing /api/valve/close..."
-CLOSE_RESP=$(curl -s -X POST http://127.0.0.1:8000/api/valve/close 2>&1)
-if [ "$CLOSE_RESP" = '"OK"' ]; then
-    echo "   ✓ Valve CLOSE: $CLOSE_RESP"
+CLOSE_RESP=$(curl -s --max-time 3 -X POST "$API_URL/api/valve/close" -w "%{http_code}" -o /tmp/close_resp.txt)
+CLOSE_BODY=$(cat /tmp/close_resp.txt)
+if [ "$CLOSE_RESP" = "200" ] && [ "$CLOSE_BODY" = '"OK"' ]; then
+    echo "   ✓ Valve CLOSE: $CLOSE_BODY"
 else
-    echo "   ✗ Valve CLOSE failed: $CLOSE_RESP"
+    echo "   ✗ Valve CLOSE failed: HTTP $CLOSE_RESP, Body: $CLOSE_BODY"
 fi
 echo ""
 
@@ -61,7 +71,15 @@ echo ""
 
 echo "6. Recent Logs:"
 echo "   Last 5 log entries:"
-sudo journalctl -u uuplastination-api -n 5 --no-pager | grep -v "^--" | sed 's/^/   /'
+if command -v journalctl >/dev/null; then
+    if [ "$EUID" -eq 0 ]; then
+        journalctl -u uuplastination-api -n 5 --no-pager | grep -v "^--" | sed 's/^/   /'
+    else
+        journalctl -u uuplastination-api -n 5 --no-pager | grep -v "^--" | sed 's/^/   /' 2>/dev/null || echo "   (Insufficient permissions for logs)"
+    fi
+else
+    echo "   journalctl not found"
+fi
 echo ""
 
 echo "========================================="
