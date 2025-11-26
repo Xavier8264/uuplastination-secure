@@ -35,50 +35,82 @@ _valve_position = int(os.getenv("VALVE_START_PERCENT", "50"))  # purely virtual 
 STEP_PERCENT = int(os.getenv("VALVE_STEP_PERCENT", "5"))
 REPORT_POSITION = os.getenv("VALVE_REPORT_POSITION", "1") not in ("0", "false", "False")
 
-_ser: Optional['serial.Serial'] = None  # cached handle
-
-def _ensure_serial() -> 'serial.Serial':
+def _send_char(ch: str) -> None:
+    """Write a single character to the serial port. Opens, writes, closes immediately.
+    This ensures we don't hold the port open and avoids 'device busy' errors.
+    """
     if serial is None:
         raise HTTPException(status_code=500, detail="pyserial not installed")
-    global _ser
-    if _ser and _ser.is_open:
-        return _ser
+    
+    ser = None
     try:
-        # timeout=0 -> non-blocking reads (we don't read); write_timeout enforced
-        _ser = serial.Serial(
+        # Open with exclusive access, write immediately, close
+        # timeout=0 means non-blocking (we never read)
+        ser = serial.Serial(
             DEVICE_PATH,
             BAUD_RATE,
             timeout=0,
             write_timeout=WRITE_TIMEOUT,
+            exclusive=True,  # Prevent other processes from opening simultaneously
         )
-        time.sleep(0.02)  # tiny settle; some boards need a moment after opening
-        return _ser
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"serial unavailable: {e}")
-
-def _send_char(ch: str) -> None:
-    ser = _ensure_serial()
-    try:
+        time.sleep(0.01)  # Brief settle time
         ser.write(ch.encode("utf-8"))
-        # no flush needed; pyserial writes directly; flush() optional
+        ser.flush()  # Ensure data is transmitted before closing
+    except serial.SerialException as e:
+        if "busy" in str(e).lower():
+            raise HTTPException(
+                status_code=503, 
+                detail=f"Serial port {DEVICE_PATH} is busy. Close other applications using this port."
+            )
+        raise HTTPException(status_code=503, detail=f"Serial error: {e}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"serial write failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to write to serial: {e}")
+    finally:
+        if ser and ser.is_open:
+            try:
+                ser.close()
+            except Exception:
+                pass  # Best effort cleanup
 
 @router.get("/health")
 def valve_health() -> Dict[str, object]:
     """Report usability of the serial device without implying responses."""
+    if serial is None:
+        raise HTTPException(status_code=500, detail="pyserial not installed")
+    
+    ser = None
     try:
-        ser = _ensure_serial()
-        return {
+        # Quick test: open and close to verify port is accessible
+        ser = serial.Serial(
+            DEVICE_PATH,
+            BAUD_RATE,
+            timeout=0,
+            write_timeout=WRITE_TIMEOUT,
+            exclusive=True,
+        )
+        result = {
             "device": DEVICE_PATH,
-            "open": bool(ser.is_open),
+            "accessible": True,
             "baud": BAUD_RATE,
             "one_way": True,
         }
-    except HTTPException as e:
-        raise e
+        ser.close()
+        return result
+    except serial.SerialException as e:
+        if "busy" in str(e).lower():
+            raise HTTPException(
+                status_code=503, 
+                detail=f"Port {DEVICE_PATH} is busy. Check: lsof {DEVICE_PATH}"
+            )
+        raise HTTPException(status_code=503, detail=f"Serial error: {e}")
     except Exception as e:  # pragma: no cover
         raise HTTPException(status_code=503, detail=str(e))
+    finally:
+        if ser and ser.is_open:
+            try:
+                ser.close()
+            except Exception:
+                pass
 
 @router.get("/position")
 def valve_position() -> Dict[str, Optional[int]]:
