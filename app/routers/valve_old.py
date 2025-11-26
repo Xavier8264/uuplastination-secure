@@ -100,33 +100,6 @@ async def close_valve():
             raise HTTPException(status_code=500, detail=f"Serial error: {str(e)}")
 
 
-@router.get("/api/valve/status")
-async def valve_status():
-    """
-    Check whether the Arduino serial connection is available.
-
-    Does NOT throw, just reports connected / not connected.
-    """
-    with serial_lock:
-        try:
-            # Try to get a live port; will attempt reconnect
-            ser = get_serial()
-            return {
-                "connected": True,
-                "port": SERIAL_PORT,
-                "baud_rate": BAUD_RATE,
-                "is_open": ser.is_open,
-            }
-        except HTTPException as e:
-            # Swallow into a friendly JSON status
-            return {
-                "connected": False,
-                "port": SERIAL_PORT,
-                "baud_rate": BAUD_RATE,
-                "error": e.detail,
-            }
-
-
 def cleanup() -> None:
     """Close serial connection on shutdown."""
     global serial_conn
