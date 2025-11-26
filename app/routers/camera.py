@@ -79,15 +79,17 @@ class CameraController:
         if PICAMERA_AVAILABLE:
             try:
                 self.picam2 = Picamera2(self.camera_num)
+                # Use simpler config that works with rpicam
                 video_config = self.picam2.create_video_configuration(
-                    main={"size": self.resolution, "format": "RGB888"},
-                    controls={"FrameRate": self.framerate}
+                    main={"size": self.resolution}
                 )
                 self.picam2.configure(video_config)
                 print(f"PiCamera {self.camera_num} ready: {self.resolution[0]}x{self.resolution[1]} @ {self.framerate}fps")
             except Exception as e:
                 self.picam2 = None
                 print(f"picamera2 init failed: {e}")
+                import traceback
+                traceback.print_exc()
                 if not CV2_AVAILABLE:
                     raise
         if self.picam2 is None and CV2_AVAILABLE:
@@ -173,7 +175,8 @@ class CameraController:
             return None
             
         with self.output.condition:
-            self.output.condition.wait()
+            # Wait with timeout to avoid infinite blocking
+            self.output.condition.wait(timeout=5.0)
             return self.output.frame
 
     def status(self) -> dict:

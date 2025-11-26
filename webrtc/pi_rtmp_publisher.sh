@@ -47,7 +47,23 @@ echo "Starting Pi RTMP publisher -> $TARGET" | tee -a "$LOG_FILE"
 while true; do
   START_TS=$(date -Is)
   echo "[$START_TS] Launching pipeline..." | tee -a "$LOG_FILE"
-  if command -v libcamera-vid >/dev/null 2>&1; then
+  # Try rpicam-vid first (new naming), fall back to libcamera-vid
+  if command -v rpicam-vid >/dev/null 2>&1; then
+    # rpicam produces H.264 Annex B. We wrap to FLV via ffmpeg.
+    # --inline ensures SPS/PPS are sent regularly for live streaming.
+    set +e
+    rpicam-vid \
+      -t 0 \
+      --width "$CAMERA_WIDTH" --height "$CAMERA_HEIGHT" \
+      --framerate "$CAMERA_FPS" \
+      --inline \
+      --codec h264 \
+      -o - \
+      2>>"$LOG_FILE" \
+      | ffmpeg -loglevel warning -re -f h264 -i - -c:v copy -f flv "$TARGET" 2>>"$LOG_FILE"
+    RC=$?
+    set -e
+  elif command -v libcamera-vid >/dev/null 2>&1; then
     # libcamera produces H.264 Annex B. We wrap to FLV via ffmpeg.
     # --inline ensures SPS/PPS are sent regularly for live streaming.
     set +e
@@ -63,6 +79,7 @@ while true; do
     RC=$?
     set -e
   else
+    echo "Neither rpicam-vid nor libcamera-vid found; will try ffmpeg v4l2 fallback" | tee -a "$LOG_FILE"
     # Fallback: capture via v4l2 (USB UVC cams)
     set +e
     ffmpeg -loglevel warning -f v4l2 -input_format mjpeg \
