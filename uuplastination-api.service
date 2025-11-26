@@ -1,0 +1,19 @@
+[Unit]
+Description=UU Plastination FastAPI (secure API + WebRTC token)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=plastination
+Group=plastination
+WorkingDirectory=/home/plastination/uuplastination/uuplastination-secure
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/home/plastination/uuplastination/uuplastination-secure/.env
+SupplementaryGroups=dialout
+ExecStart=/home/plastination/uuplastination/uuplastination-secure/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
