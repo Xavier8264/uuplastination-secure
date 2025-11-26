@@ -57,12 +57,14 @@ def _send_char(ch: str) -> None:
         ser.write(ch.encode("utf-8"))
         ser.flush()  # Ensure data is transmitted before closing
     except serial.SerialException as e:
+        # Log the error for debugging
+        print(f"Serial error: {str(e)}")
         if "busy" in str(e).lower():
             raise HTTPException(
                 status_code=503, 
-                detail=f"Serial port {DEVICE_PATH} is busy. Close other applications using this port."
+                detail="Serial device is busy, please try again later."
             )
-        raise HTTPException(status_code=503, detail=f"Serial error: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred with the serial connection.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to write to serial: {e}")
     finally:
@@ -148,4 +150,8 @@ def valve_raw(char: str) -> Dict[str, object]:
         raise HTTPException(status_code=400, detail="char must be a single character")
     _send_char(char)
     return {"result": "raw-sent", "char": char}
+
+# --- Configuration Validation ------------------------------------------------
+if not os.path.exists(DEVICE_PATH):
+    raise RuntimeError(f"Serial device not found: {DEVICE_PATH}")
 
