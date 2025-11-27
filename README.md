@@ -1,397 +1,439 @@
-# UU Plastination — Secure Control System# uuplastination-secure
+# UU Plastination — Secure Control System
 
+Modern, Apple-inspired web dashboard for controlling plastination equipment with live camera feed, dual valve control systems, and comprehensive system monitoring on Raspberry Pi.
 
+## ✨ Features
 
-Modern, Apple-inspired web dashboard for controlling plastination equipment with live camera feed, valve control, and system monitoring on Raspberry Pi.## Pi Stats Feature
+- 📹 **Live Camera Feed** - MJPEG streaming from Raspberry Pi Camera (CSI port) with WebRTC/LiveKit support for low-latency viewing
+- 🎛️ **Dual Valve Control Systems**
+  - **Stepper Motor Control** - Precise GPIO-driven control (A4988/DRV8825 compatible drivers)
+  - **Serial Valve Control** - Arduino-based valve control via USB serial (`/dev/ttyACM0`)
+- 📊 **System Monitoring** - Real-time Pi telemetry including CPU temp/usage, memory, uptime, network status, and systemd service health
+- 🚀 **WebRTC Streaming** - LiveKit integration with RTMP publisher and automatic MJPEG fallback
+- 🎨 **Beautiful UI** - Apple-inspired responsive design
 
+## 📋 Table of Contents
 
+- [Hardware Requirements](#-hardware-requirements)
+- [Quick Start](#-quick-start)
+- [API Endpoints](#-api-endpoints)
+- [Configuration](#-configuration)
+- [Production Deployment](#-production-deployment)
+- [WebRTC Setup](#-webrtc--livekit-setup)
+- [Troubleshooting](#-troubleshooting)
+- [Documentation](#-documentation)
 
-## ✨ FeaturesThis secure portal now exposes a read-only system telemetry API and a small footer widget that auto-refreshes every 5 seconds to show Raspberry Pi health.
+## 🔌 Hardware Requirements
 
-
-
-- 📹 **Live Camera Feed** - MJPEG streaming from Raspberry Pi Camera (CSI port)- Endpoint: `/api/stats` (FastAPI on 127.0.0.1:8000, proxied only within the secure site)
-
-- 🦾 **Valve Control** - Stepper motor control via configurable GPIO pins- Returns JSON: CPU temp/usage, memory totals/used/percent, uptime seconds, network IPv4 addresses (non-loopback) and internet reachability, systemd service states (camera, stepper, nginx, tailscaled, webhook-deploy), simple port checks (RTSP 8554 and local HTTP 8000), OS info (PRETTY_NAME, kernel, arch), and a timestamp.
-
-- 📊 **System Monitoring** - Real-time CPU, memory, and health metrics- Frontend: The secure page footer fetches `/api/stats` and renders concise badges and info. If unavailable, it shows a graceful “Failed to load stats”.
-- 🚀 **LiveKit/WebRTC** - Automatic WebRTC low-latency feed with MJPEG fallback and resilient Pi publisher service (RTMP ingress + systemd).
-
-- 🫧 **Bubble Detection** - Track and visualize bubble rates (placeholder for AI integration)
-
-- 🎨 **Beautiful UI** - Apple-inspired responsive design### Requirements on the Pi
-
-
-
-## 🚀 Quick Start- Python 3
-
-- Packages: `fastapi`, `uvicorn[standard]`, `psutil` (see `requirements.txt`)
-
-**For detailed setup instructions, see [SETUP.md](SETUP.md)**- For true CPU temperature: install `libraspberrypi-bin` (provides `vcgencmd`)
-
-
-
-**For GPIO pin configuration, see [GPIO_SETUP.md](GPIO_SETUP.md)**### Systemd service (template)
-
-
-
-### PrerequisitesThis repo includes a template unit at `systemd/uuplastination-stats.service`. The real unit should be placed at `/etc/systemd/system/uuplastination-stats.service` and adjusted if your working directory differs.
-
-
-
-- Raspberry Pi 4 or 5 with Raspberry Pi OSSuggested enable/start (run as root):
-
+### Essential
+- Raspberry Pi 4 or 5 with Raspberry Pi OS (Bullseye or newer)
 - Raspberry Pi Camera Module (connected to CSI port)
+- Power supply appropriate for your Pi model
 
-- Stepper motor + driver (A4988, DRV8825, or similar)Enable and start in one line:
+### For Stepper Motor Control
+- Stepper motor (NEMA 17 or similar)
+- Stepper driver (A4988, DRV8825, or compatible)
+- Appropriate power supply for motor (12V-24V typical)
+- GPIO connections (see [GPIO_SETUP.md](GPIO_SETUP.md))
 
+### For Serial Valve Control
+- Arduino or compatible microcontroller running valve control firmware
+- USB connection to Raspberry Pi (`/dev/ttyACM0`)
 
+## 🚀 Quick Start
 
-### Basic Installation`systemctl enable --now uuplastination-stats.service`
-
-
-
-```bashNotes:
-
-# Clone repository- It runs `uvicorn app.main:app` on `127.0.0.1:8000` and restarts on failure.
-
-git clone https://github.com/Xavier8264/uuplastination-secure.git- Environment variables can override service names and ports.
-
-cd uuplastination-secure
-
-### Nginx proxy (secure site only)
-
-# Install dependencies
-
-python3 -m venv venvInclude `nginx/secure_api_location.conf` within the secure server block. It proxies `/api/` to `http://127.0.0.1:8000/api/`. Do not add this to the public server block.
-
-source venv/bin/activate
-
-pip install -r requirements.txt### Configurable names/ports
-
-
-
-# Configure GPIO pins# UU Plastination — Secure Portal
-
-cp .env.example .env
-
-nano .env  # Edit to match your wiringThis secure site hosts private tools and APIs for the AI camera/plastination project.
-
-
-
-# Run the application## What’s here
-
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-```- `index.html` — Secure UI with telemetry and actuator controls
-
-- `app/` — FastAPI app served behind Nginx
-
-Access at: `http://your-pi-ip:8000`	- `routers/stats.py` — Pi telemetry endpoint (`GET /api/stats`)
-
-	- `routers/stepper.py` — Stepper control endpoints under `/api/stepper`
-
-## 🔌 GPIO Pin Configuration- `nginx/secure_api_location.conf` — Nginx `location /api/` proxy include
-
-- `systemd/uuplastination-stats.service` — Example unit for uvicorn app
-
-The system uses **BCM GPIO numbering**. Default pins:- `requirements.txt` — Python deps
-
-- **STEP**: GPIO 23 (Physical Pin 16)
-
-- **DIR**: GPIO 24 (Physical Pin 18)  ## Stepper control API
-
-- **ENABLE**: GPIO 18 (Physical Pin 12)
-
-All routes are available only via the secure origin and proxied by Nginx to the local FastAPI app. Default bind: `127.0.0.1:8000`.
-
-**You can use any available GPIO pins** - just update the `.env` file:
-
-Base path: `/api/stepper`
+### Prerequisites
 
 ```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
 
-VALVE_PIN_STEP=23    # Change to your STEP pin- `GET /healthz` — simple 200 OK
-
-VALVE_PIN_DIR=24     # Change to your DIR pin- `GET /status` — returns `{ enabled, moving, position_steps, worker_alive, last_error, steps_per_rev, default_rpm }`
-
-VALVE_PIN_ENABLE=18  # Change to your ENABLE pin- `POST /enable` — asserts ENABLE pin (or treated as always-enabled if no pin)
-
-```- `POST /disable` — de-asserts ENABLE; errors with 409 if moving
-
-- `POST /abort` — cancels current move if running
-
-See [GPIO_SETUP.md](GPIO_SETUP.md) for complete pinout and wiring guide.- `POST /step?steps=±N&rpm=R&direction=fwd|rev` — non-blocking move; returns `moving`
-
-- `POST /open` — convenience forward move of `STEPPER_OPEN_STEPS` (default 200)
-
-## 📹 Camera Setup- `POST /close` — convenience reverse move of `STEPPER_CLOSE_STEPS` (default -200)
-
-
-
-Supports Raspberry Pi Camera Module on CSI port. Configure in `.env`:Notes:
-
-- Uses basic STEP/DIR/ENABLE control (A4988/DRV8825-style). Timing is best-effort via Python sleeps; adequate for manual control.
-
-```bash- Concurrency-safe: rejects a new move with HTTP 409 if already moving; use `/abort` to stop.
-
-CAMERA_NUM=0          # Camera port (0 for CAM0, 1 for CAM1)
-
-CAMERA_WIDTH=1920     # Resolution width## GPIO configuration
-
-CAMERA_HEIGHT=1080    # Resolution height
-
-CAMERA_FPS=30         # Frame rateThe controller reads environment variables (BCM numbering):
-
+# Install system dependencies
+sudo apt install python3 python3-pip python3-venv -y
+sudo apt install python3-picamera2 libraspberrypi-bin -y
 ```
 
-- `STEPPER_PIN_STEP` (default 23)
+### Installation
 
-## 🔧 API Endpoints- `STEPPER_PIN_DIR` (default 24)
+```bash
+# Clone repository
+git clone https://github.com/Xavier8264/uuplastination-secure.git
+cd uuplastination-secure
 
-- `STEPPER_PIN_ENABLE` (default 18; set to `-1` or unset to omit enable control)
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
 
-### Camera- `STEPPER_STEPS_PER_REV` (default 200)
+# Install Python dependencies
+pip install -r requirements.txt
 
-- `GET /camera/stream.mjpg` - Live MJPEG stream- `STEPPER_DEFAULT_RPM` (default 60)
+# Configure environment
+cp .env.example .env
+nano .env  # Edit to match your hardware setup
+```
 
-- `GET /camera/snapshot` - Single frame capture- `STEPPER_INVERT_ENABLE` (default 1; many drivers use active-low ENABLE)
+### Running Locally
 
-- `GET /camera/status` - Camera status- `STEPPER_OPEN_STEPS` (default 200)
+```bash
+# Activate virtual environment
+source venv/bin/activate
 
-- `STEPPER_CLOSE_STEPS` (default -200)
+# Run the application
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
-### Valve Control  
+Access the dashboard at: `http://your-pi-ip:8000`
 
-- `POST /api/valve/open` - Open valve by 5%## Deploy
+## 🔧 API Endpoints
 
-- `POST /api/valve/close` - Close valve by 5%
+All API endpoints are served by FastAPI on `127.0.0.1:8000` and should be proxied through Nginx for security.
 
-- `GET /api/valve/position` - Current position1) Install dependencies on the Pi (within an isolated venv):
+### System Monitoring
 
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/stats` | GET | Comprehensive system telemetry (CPU, memory, uptime, network, services) |
 
+**Response includes:**
+- CPU temperature and usage percentage
+- Memory total, used, and percentage
+- System uptime in seconds
+- Network IPv4 addresses and internet reachability
+- Systemd service states (configurable via env vars)
+- Port availability checks (RTSP 8554, API 8000)
+- OS information and timestamp
 
-### Stepper Motor (Advanced)- `fastapi`
+### Camera
 
-- `GET /api/stepper/status` - Motor status- `uvicorn[standard]`
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/camera/stream.mjpg` | GET | Live MJPEG stream |
+| `/camera/snapshot` | GET | Single frame capture |
+| `/camera/status` | GET | Camera status and publisher health |
 
-- `POST /api/stepper/enable` - Enable motor- `psutil`
+### Stepper Motor Control
 
-- `POST /api/stepper/disable` - Disable motor- (Optional) `RPi.GPIO` — available by default on Raspberry Pi OS; for 64-bit Bullseye/Bookworm use the packaged module.
+**Base path:** `/api/stepper`
 
-- `POST /api/stepper/step?steps=200` - Move specific steps
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/healthz` | GET | Simple health check (200 OK) |
+| `/status` | GET | Motor state: enabled, moving, position, worker status, errors |
+| `/enable` | POST | Enable motor (assert ENABLE pin) |
+| `/disable` | POST | Disable motor (de-assert ENABLE pin) - errors if moving |
+| `/abort` | POST | Emergency stop - cancel current move |
+| `/step` | POST | Execute precise move (params: `steps`, `rpm`, `direction`) |
+| `/open` | POST | Convenience forward move (default 200 steps) |
+| `/close` | POST | Convenience reverse move (default -200 steps) |
 
-- `POST /api/stepper/abort` - Emergency stop2) Systemd unit: copy `systemd/uuplastination-stats.service` to `/etc/systemd/system/` and edit Environment lines to match pinout. Ensure the WorkingDirectory points to the deployed path (e.g., `/var/www/uuplastination-secure`).
+**Query Parameters for `/step`:**
+- `steps` (required): Number of steps; negative values reverse direction
+- `rpm` (optional): Speed in rotations per minute (default: 60)
+- `direction` (optional): `fwd` or `rev` to override step sign
 
+**Notes:**
+- Non-blocking operation via background worker thread
+- Returns HTTP 409 if already moving (use `/abort` to stop)
+- Timing based on Python sleeps (adequate for manual control, not real-time)
 
+### Serial Valve Control
 
-### System Monitoring```ini
+**Base path:** `/api/valve`
 
-- `GET /api/system/metrics` - System health (CPU, memory, uptime)[Service]
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/open` | POST | Send 'r' character to Arduino valve controller |
+| `/close` | POST | Send 'l' character to Arduino valve controller |
 
-- `GET /api/stats` - Detailed statisticsEnvironment=STEPPER_PIN_STEP=23
+**Notes:**
+- Communicates via `/dev/ttyACM0` at 115200 baud (configurable)
+- One-way communication (write-only)
+- Uses exclusive serial port access
+- Returns HTTP 503 if port is busy
 
-Environment=STEPPER_PIN_DIR=24
+### WebRTC/LiveKit
 
-## 🏭 Production DeploymentEnvironment=STEPPER_PIN_ENABLE=18
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/webrtc/health` | GET | WebRTC configuration summary and reachability |
+| `/webrtc/diagnostics` | GET | Detailed diagnostics including token issuance test |
 
-Environment=STEPPER_STEPS_PER_REV=200
+## ⚙️ Configuration
 
-### Run as Systemd ServiceEnvironment=STEPPER_DEFAULT_RPM=60
+### Environment Variables
 
-Environment=STEPPER_INVERT_ENABLE=1
+Copy `.env.example` to `.env` and configure:
 
-```bash```
+#### Camera Settings
+```bash
+CAMERA_NUM=0           # Camera port (0 for CAM0, 1 for CAM1)
+CAMERA_WIDTH=1920      # Resolution width
+CAMERA_HEIGHT=1080     # Resolution height
+CAMERA_FPS=30          # Frame rate
+```
 
-sudo nano /etc/systemd/system/plastination-dashboard.service
+#### Stepper Motor GPIO (BCM Numbering)
+```bash
+STEPPER_PIN_STEP=23       # GPIO pin for STEP signal (default: 23)
+STEPPER_PIN_DIR=24        # GPIO pin for DIR signal (default: 24)
+STEPPER_PIN_ENABLE=18     # GPIO pin for ENABLE signal (default: 18, -1 to disable)
+STEPPER_INVERT_ENABLE=1   # Enable pin polarity (1=active-low, 0=active-high)
+STEPPER_STEPS_PER_REV=200 # Steps per revolution (200 for 1.8° motors)
+STEPPER_DEFAULT_RPM=60    # Default rotation speed
+STEPPER_OPEN_STEPS=200    # Steps for "open" button
+STEPPER_CLOSE_STEPS=-200  # Steps for "close" button
+```
 
-```Then:
+See [GPIO_SETUP.md](GPIO_SETUP.md) for complete pinout reference and wiring guide.
 
+#### Serial Valve Settings
+```bash
+VALVE_SERIAL_BAUD=115200  # Baud rate for /dev/ttyACM0
+```
 
+#### LiveKit/WebRTC
+```bash
+LIVEKIT_HOST=https://livekit.yourdomain.com
+LIVEKIT_API_KEY=your_api_key
+LIVEKIT_API_SECRET=your_api_secret
+LIVEKIT_ICE_SERVERS=turns:turn.yourdomain.com:5349?transport=tcp
+WEBRTC_DISABLE=0          # Set to 1 to force MJPEG fallback
+```
 
-See [SETUP.md](SETUP.md) for complete service configuration.```bash
+#### System Monitoring
+```bash
+SERVICE_CAMERA=camera-stream.service   # Systemd service name to monitor
+SERVICE_STEPPER=valve-control.service  # Systemd service name to monitor
+PORT_RTSP=8554                         # RTSP port to check
+PORT_API=8000                          # API port to check
+```
 
+## 🏭 Production Deployment
+
+### 1. Systemd Service
+
+The application should run as a systemd service for automatic startup and restart on failure.
+
+```bash
+# Copy template to systemd directory
+sudo cp systemd/uuplastination-stats.service /etc/systemd/system/
+
+# Edit to match your deployment path
+sudo nano /etc/systemd/system/uuplastination-stats.service
+
+# Enable and start service
 sudo systemctl daemon-reload
+sudo systemctl enable --now uuplastination-stats.service
 
-```bashsudo systemctl enable uuplastination-stats --now
-
-sudo systemctl enable plastination-dashboardsudo systemctl status uuplastination-stats
-
-sudo systemctl start plastination-dashboard```
-
+# Check status
+sudo systemctl status uuplastination-stats.service
 ```
 
-3) Nginx: include `nginx/secure_api_location.conf` inside the secure server block hosting `/secure`. This proxies `/secure/api/` → `http://127.0.0.1:8000/api/`.
+**Service Configuration Notes:**
+- Default working directory: `/var/www/secure/uuplastination-secure`
+- Binds to `127.0.0.1:8000` (localhost only)
+- Auto-restarts on failure with 3-second delay
+- Environment variables can be set in the service file or via `EnvironmentFile`
 
-### Nginx Reverse Proxy
+### 2. Nginx Reverse Proxy
 
-Add rate limiting for actuator routes if desired:
+The API should **never** be exposed directly. Use Nginx as a reverse proxy with SSL/TLS.
 
-Include `nginx/secure_api_location.conf` in your secure server block:
+```bash
+# Include API proxy configuration in your secure server block
+sudo nano /etc/nginx/sites-available/secure
+```
 
+Add this inside your SSL server block:
 ```nginx
+# Include API routes (only in secure vhost)
+include /path/to/nginx/secure_api_location.conf;
+```
 
-```nginxlocation /api/stepper/ {
+The `secure_api_location.conf` file proxies `/api/*` to `http://127.0.0.1:8000/api/*`.
 
-server {		limit_req zone=actuator burst=5 nodelay;
+**Optional Rate Limiting for Actuators:**
+```nginx
+# Define rate limit zone (in http context)
+limit_req_zone $binary_remote_addr zone=actuator:10m rate=10r/m;
 
-    listen 443 ssl;		proxy_pass http://127.0.0.1:8000/api/stepper/;
-
-    server_name your-domain.com;}
-
-    ```
-
-    # Include API proxy
-
-    include /path/to/nginx/secure_api_location.conf;4) Cloudflare: keep TLS termination at Cloudflare; only expose the secure origin. Gate with Cloudflare Access or HTTP Basic auth.
-
-    
-
-    # Rate limiting for actuator endpoints## Frontend controls
-
-    location /api/stepper/ {
-
-        limit_req zone=actuator burst=5 nodelay;`index.html` includes a "Stepper Motor Control" card with buttons that call the API through the same origin. Status polls every 3 seconds.
-
-        proxy_pass http://127.0.0.1:8000/api/stepper/;
-
-    }## Security notes
-
+# Apply to stepper/valve routes (in server context)
+location /api/stepper/ {
+    limit_req zone=actuator burst=5 nodelay;
+    proxy_pass http://127.0.0.1:8000/api/stepper/;
 }
 
-```- API binds to 127.0.0.1 only. Do not expose it directly.
-
-- Place actuator routes only under the secure vhost. Gate with Cloudflare Access or Basic auth.
-
-## 🔒 Security- Consider CSRF exposure minimal because only POST methods perform actions and the site is behind access controls; still, same-site cookies only.
-
-- Add Nginx rate limits on `/api/stepper/*`.
-
-- API binds to `127.0.0.1` only by default
-
-- Use Nginx reverse proxy with SSL/TLS## Troubleshooting
-
-- Add authentication (Cloudflare Access, HTTP Basic Auth, etc.)
-
-- Implement rate limiting on actuator endpoints- Check service: `systemctl status uuplastination-stats` and `journalctl -u uuplastination-stats -e`
-
-- Keep system and dependencies updated- Health: `curl -s http://127.0.0.1:8000/api/stepper/healthz`
-
-- If GPIO import fails on dev: routes still work but don’t toggle pins; errors appear in `/api/stepper/status` under `last_error`.
-
-## 📚 Documentation
-
-- [SETUP.md](SETUP.md) - Complete setup guide
-- [GPIO_SETUP.md](GPIO_SETUP.md) - GPIO pin configuration and wiring
-- [.env.example](.env.example) - Environment configuration reference
-
-## 🎥 LiveKit WebRTC & Pi Camera Publisher
-
-For a permanent, reliable live feed, run the Pi camera as an autonomous RTMP publisher into a LiveKit Ingress. The dashboard will automatically subscribe via WebRTC; if unavailable it falls back to MJPEG and keeps retrying.
-
-### 1. Create Ingress & Store Stream Key
+location /api/valve/ {
+    limit_req zone=actuator burst=5 nodelay;
+    proxy_pass http://127.0.0.1:8000/api/valve/;
+}
 ```
+
+### 3. Security Hardening
+
+- ✅ Bind API to `127.0.0.1` only (not `0.0.0.0`)
+- ✅ Use Nginx reverse proxy with SSL/TLS
+- ✅ Add authentication (Cloudflare Access, HTTP Basic Auth, etc.)
+- ✅ Rate limit actuator endpoints (`/api/stepper/*`, `/api/valve/*`)
+- ✅ Restrict `.env` file permissions: `chmod 600 .env`
+- ✅ Keep system and dependencies updated
+- ✅ Only expose actuator routes on the authenticated/secure vhost
+
+## 🎥 WebRTC & LiveKit Setup
+
+For low-latency live streaming, the system supports WebRTC via LiveKit with automatic MJPEG fallback.
+
+### 1. Create LiveKit Ingress
+
+```bash
+# Generate RTMP ingress and save stream key
 python3 webrtc/init_ingress.py --room plastination --name pi-cam --out webrtc/ingress_key.txt
-cat webrtc/ingress_key.txt  # contains RTMP_URL and STREAM_KEY
+
+# View generated credentials
+cat webrtc/ingress_key.txt
 ```
 
-### 2. Start Publisher (Manual Test)
-```
+### 2. Start Camera Publisher
+
+**Manual Test:**
+```bash
 bash webrtc/pi_rtmp_publisher.sh
 ```
 
-### 3. Systemd Service (Recommended)
-```
+**Systemd Service (Recommended):**
+```bash
+# Install publisher service
 sudo cp systemd/pi-camera-publisher.service.example /etc/systemd/system/pi-camera-publisher.service
+
+# Edit environment variables if needed
+sudo nano /etc/systemd/system/pi-camera-publisher.service
+
+# Enable and start
 sudo systemctl daemon-reload
 sudo systemctl enable --now pi-camera-publisher.service
+
+# Check logs
+sudo journalctl -u pi-camera-publisher.service -f
 ```
 
-Logs: `/var/log/pi-camera/publisher.log`
-Health: `GET /camera/status` includes publisher status if health file exists.
+**Publisher logs:** `/var/log/pi-camera/publisher.log`
 
-### 4. Environment Variables (Add to `.env`)
-```
-LIVEKIT_HOST=https://livekit.uuplastination.com
-LIVEKIT_API_KEY=...
-LIVEKIT_API_SECRET=...
-LIVEKIT_ICE_SERVERS=turns:turn.uuplastination.com:5349?transport=tcp
-CAMERA_WIDTH=1280
-CAMERA_HEIGHT=720
-CAMERA_FPS=30
-```
+### 3. WebRTC Troubleshooting
 
-### 5. Troubleshooting
-| Symptom | Action |
-|---------|--------|
-| MJPEG only, no WebRTC | Verify LiveKit HTTPS/WSS reachable & TURN ports exposed. Check browser console. |
-| Publisher restarts rapidly | Inspect ribbon cable, run `libcamera-hello`. Check log for H264 errors. |
-| Token errors | Confirm API key/secret in `.env` and service loaded `EnvironmentFile`. |
-| High latency | Ensure H264 hardware encode (libcamera-vid) instead of software MJPEG→x264 path. |
-| TURN failures | Use TURNS (5349) over TCP if UDP blocked; verify certificate and realm match domain. |
-| ICE gathering stalls | Check `/webrtc/health` for missing ICE servers; add `LIVEKIT_ICE_SERVERS`. |
-| Browser mixed-content error | Set `LIVEKIT_HOST` to https://... or rely on relative `/livekit` proxy with HTTPS site. |
-| 403 joining room | Rotate API key/secret; verify LiveKit server keys match `.env`. |
+| Symptom | Solution |
+|---------|----------|
+| MJPEG only, no WebRTC | Check browser console for errors. Verify `LIVEKIT_HOST` is HTTPS and reachable. Ensure TURN ports are exposed. |
+| Publisher restarts constantly | Check camera ribbon cable. Run `libcamera-hello` to test. Review `/var/log/pi-camera/publisher.log`. |
+| Token errors | Verify `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` in `.env` match LiveKit server. |
+| High latency | Ensure using H264 hardware encoding (libcamera-vid) not software MJPEG→x264. |
+| TURN connection failures | Use TURNS (port 5349) over TCP if UDP blocked. Verify TLS certificate and realm match domain. |
+| ICE gathering stalls | Check `/webrtc/health` endpoint. Ensure `LIVEKIT_ICE_SERVERS` is set with valid STUN/TURN servers. |
+| 403 joining room | Rotate API credentials. Verify keys match between `.env` and LiveKit server config. |
 
-### Health & Diagnostics Endpoints
-
-The backend exposes two helper endpoints to accelerate troubleshooting:
-
-```
-GET /webrtc/health        # Summarizes env vars, reachability, ICE server count, disabled flag
-GET /webrtc/diagnostics   # Adds token issuance attempt & sample token prefix
-```
-
-Interpretation hints:
-- `reachability: tcp-ok` (absolute HTTPS host) or `http-status-200` (proxied path) means signaling path is reachable.
-- Empty `recommendations` means baseline config looks good.
-- If `ice_servers_count` is 0 add STUN/TURN to `LIVEKIT_ICE_SERVERS`.
-- If `api_credentials_configured` is false set `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET`.
-
-### Automated Validation Script
-
-Run consolidated checks without needing a browser:
-
-```
+**Validation Script:**
+```bash
+# Run automated WebRTC checks
 python3 scripts/webrtc_validate.py
 ```
 
-Outputs PASS/FAIL lines for:
-1. Environment variables present
-2. Host URL form (absolute vs relative proxy)
-3. Token issuance
-4. Signaling reachability
-5. ICE servers presence
-6. TURN guidance (ports/certs/realm)
-
-If a critical check FAILs, follow the printed recommendation then re-run the script.
-
-
-### 6. Alternative: Python Publisher Prototype
-Experimental module at `app/services/publisher.py` sketches a future direct WebRTC publisher. Current production path remains RTMP ingress + ffmpeg for maximum stability.
-
-
 ## 🐛 Troubleshooting
 
-### Camera not working
+### Camera Not Working
+
 ```bash
-libcamera-hello  # Test camera
-vcgencmd get_camera  # Check detection
+# Test camera hardware
+libcamera-hello
+
+# Check camera detection
+vcgencmd get_camera
+
+# Enable camera if disabled
+sudo raspi-config
+# Navigate to: Interface Options > Camera > Enable
 ```
 
-### Motor not moving
-1. Check power supply to driver
-2. Verify GPIO pins in `.env`
-3. Try: `curl -X POST http://localhost:8000/api/stepper/enable`
+### Stepper Motor Not Moving
 
-### Check logs
+1. **Check power supply** - Ensure stepper driver has adequate power (12V-24V typical)
+2. **Verify GPIO pins** - Confirm `.env` settings match your wiring
+3. **Test enable pin**:
+   ```bash
+   curl -X POST http://localhost:8000/api/stepper/enable
+   curl http://localhost:8000/api/stepper/status
+   ```
+4. **Check driver microstepping** - Ensure driver DIP switches match your steps-per-revolution setting
+5. **Review logs**:
+   ```bash
+   sudo journalctl -u uuplastination-stats.service -f
+   ```
+
+### Serial Valve Not Responding
+
+1. **Check device path**:
+   ```bash
+   ls -l /dev/ttyACM*
+   # Ensure /dev/ttyACM0 exists and is readable
+   ```
+2. **Verify permissions**:
+   ```bash
+   # Add user to dialout group
+   sudo usermod -a -G dialout $USER
+   # Log out and back in
+   ```
+3. **Test serial connection**:
+   ```bash
+   # Install screen if not present
+   sudo apt install screen
+   
+   # Connect to serial port
+   screen /dev/ttyACM0 115200
+   # Type 'r' or 'l' and observe Arduino behavior
+   ```
+4. **Check baud rate** - Ensure Arduino firmware uses 115200 baud (or update `VALVE_SERIAL_BAUD`)
+
+### Service Logs
+
 ```bash
-sudo journalctl -u plastination-dashboard -f
+# View service status
+sudo systemctl status uuplastination-stats.service
+
+# Follow live logs
+sudo journalctl -u uuplastination-stats.service -f
+
+# View last 100 lines
+sudo journalctl -u uuplastination-stats.service -n 100
 ```
+
+### GPIO Permission Issues
+
+If GPIO operations fail with permission errors:
+
+```bash
+# Add user to gpio group
+sudo usermod -a -G gpio $USER
+
+# Create udev rule for GPIO access
+echo 'SUBSYSTEM=="gpio", GROUP="gpio", MODE="0660"' | sudo tee /etc/udev/rules.d/99-gpio.rules
+
+# Reload udev rules
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+
+# Log out and back in
+```
+
+## 📚 Documentation
+
+- **[SETUP.md](SETUP.md)** - Detailed setup and installation guide
+- **[GPIO_SETUP.md](GPIO_SETUP.md)** - Complete GPIO pinout reference and wiring diagrams
+- **[.env.example](.env.example)** - Full environment variable documentation
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment and security guidelines
+- **[WEBRTC.md](WEBRTC.md)** - WebRTC/LiveKit integration guide
+- **[VALVE_API.md](VALVE_API.md)** - Valve control API documentation
 
 ## 🤝 Contributing
 
-Pull requests are welcome! For major changes, please open an issue first.
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
 
 ## 📄 License
 
@@ -399,8 +441,8 @@ MIT License - See LICENSE file for details
 
 ## 📞 Support
 
-For issues or questions, open an issue on GitHub.
+For issues or questions, open an issue on [GitHub](https://github.com/Xavier8264/uuplastination-secure/issues).
 
 ---
 
-**Previous documentation backed up to `README.md.backup`**
+**Built with ❤️ for the UU Plastination Lab**
