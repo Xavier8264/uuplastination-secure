@@ -1,6 +1,21 @@
-# Deployment Checklist – UU Plastination Secure
+# UU Plastination — Deployment & Testing Guide
 
-Complete guide to deploy the camera streaming system with LiveKit WebRTC and RTMP publisher.
+Complete guide for deploying the camera streaming system with LiveKit WebRTC and RTMP publisher.
+
+---
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Part 1: Server Setup](#part-1-server-setup-livekit--api)
+- [Part 2: Raspberry Pi Camera Publisher Setup](#part-2-raspberry-pi-camera-publisher-setup)
+- [Part 3: Verify Complete System](#part-3-verify-complete-system)
+- [Testing Checklists](#testing-checklists)
+- [Security Checklist](#security-checklist)
+- [Maintenance](#maintenance)
+- [Troubleshooting](#troubleshooting)
+
+---
 
 ## Prerequisites
 
@@ -9,6 +24,8 @@ Complete guide to deploy the camera streaming system with LiveKit WebRTC and RTM
 - [ ] Server/VM for LiveKit stack (can be the same Pi or separate server)
 - [ ] Public domain with DNS control
 - [ ] SSL/TLS certificates (Let's Encrypt recommended)
+
+---
 
 ## Part 1: Server Setup (LiveKit + API)
 
@@ -169,6 +186,23 @@ server {
 }
 ```
 
+**Optional Rate Limiting for Actuators:**
+```nginx
+# Define rate limit zone (in http context)
+limit_req_zone $binary_remote_addr zone=actuator:10m rate=10r/m;
+
+# Apply to stepper/valve routes (in server context)
+location /api/stepper/ {
+    limit_req zone=actuator burst=5 nodelay;
+    proxy_pass http://127.0.0.1:8000/api/stepper/;
+}
+
+location /api/valve/ {
+    limit_req zone=actuator burst=5 nodelay;
+    proxy_pass http://127.0.0.1:8000/api/valve/;
+}
+```
+
 **Test and reload:**
 ```bash
 sudo nginx -t
@@ -185,6 +219,8 @@ sudo ufw allow 3478/udp   # TURN (optional, improves NAT traversal)
 ```
 
 **Important:** If using Cloudflare, ensure TURN domain DNS is "DNS only" (not proxied), as Cloudflare doesn't proxy UDP.
+
+---
 
 ## Part 2: Raspberry Pi Camera Publisher Setup
 
@@ -303,6 +339,8 @@ sudo systemctl status pi-camera-publisher.service
 curl https://www.uuplastination.com/secure/camera/status
 ```
 
+---
+
 ## Part 3: Verify Complete System
 
 ### 3.1 Check LiveKit Room
@@ -368,9 +406,242 @@ tail -f /var/log/pi-camera/publisher.log
 sudo systemctl status pi-camera-publisher.service
 ```
 
+---
+
+## Testing Checklists
+
+### Pre-Installation Tests
+
+#### Hardware Check
+- [ ] Raspberry Pi is powered on and accessible
+- [ ] Raspberry Pi Camera is connected to CSI port
+- [ ] Stepper motor driver is connected to power supply
+- [ ] GPIO wires are connected from Pi to stepper driver
+- [ ] You know which GPIO pins you're using (BCM numbering)
+
+#### Software Check
+- [ ] Raspberry Pi OS is installed and updated
+- [ ] Python 3 is installed (`python3 --version`)
+- [ ] Camera is enabled in raspi-config
+- [ ] You can access Pi via SSH or direct connection
+
+### Installation Tests
+
+#### Basic Setup
+- [ ] Repository cloned successfully
+- [ ] Virtual environment created (`venv/` directory exists)
+- [ ] Dependencies installed without errors
+- [ ] `.env` file created from `.env.example`
+- [ ] GPIO pins configured in `.env` to match your wiring
+
+#### Camera Test (Hardware)
+```bash
+# Test camera before running app
+libcamera-hello
+```
+- [ ] Camera preview window appears
+- [ ] Image is clear and in focus
+- [ ] No error messages
+
+```bash
+# Check camera detection
+vcgencmd get_camera
+```
+- [ ] Output shows `detected=1` and `supported=1`
+
+### Application Tests
+
+#### Start Application
+```bash
+source venv/bin/activate
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+- [ ] Server starts without errors
+- [ ] No import errors
+- [ ] Listening on 0.0.0.0:8000
+
+#### Web Interface Tests
+
+**Access Dashboard** - Open `http://your-pi-ip:8000` in browser
+- [ ] Page loads without errors
+- [ ] Apple-inspired design appears
+- [ ] No 404 errors in browser console
+
+**Camera Widget**
+- [ ] Camera feed appears in top-left section
+- [ ] Live timestamp updates every second
+- [ ] FPS counter shows (should be around 30)
+- [ ] "Connected" badge is green
+
+**Valve Control Widget**
+- [ ] "Manual Valve Control" card visible on right side
+- [ ] Current position shows percentage
+- [ ] Progress bar displays
+- [ ] "Open +5%" and "Close -5%" buttons present
+- [ ] Status shows "Ready"
+
+**System Health Widget**
+- [ ] CPU Temperature displays (should be 40-70°C)
+- [ ] CPU Usage displays (should be 0-100%)
+- [ ] Memory displays in GB
+- [ ] Camera badge shows "Active" (green)
+- [ ] Stepper Motor badge shows status
+- [ ] Network badge shows "Active"
+- [ ] Uptime displays (e.g., "4d 12h 34m")
+
+### API Tests
+
+#### Camera API
+```bash
+# Get camera status
+curl http://localhost:8000/camera/status
+```
+- [ ] Returns JSON with camera info
+- [ ] Shows "running": true or false
+
+```bash
+# Test snapshot
+curl http://localhost:8000/camera/snapshot --output test.jpg
+```
+- [ ] Creates test.jpg file
+- [ ] Image opens and shows camera view
+
+#### Stepper/Valve API
+```bash
+# Get stepper status
+curl http://localhost:8000/api/stepper/status
+```
+- [ ] Returns JSON with motor status
+- [ ] Shows enabled/disabled state
+- [ ] Shows current position in steps
+
+```bash
+# Enable motor
+curl -X POST http://localhost:8000/api/stepper/enable
+```
+- [ ] Returns success message
+- [ ] Motor becomes enabled (check status endpoint)
+
+```bash
+# Test movement (SMALL MOVEMENT!)
+curl -X POST "http://localhost:8000/api/stepper/step?steps=10&rpm=30"
+```
+- [ ] Motor moves (listen for stepping sound)
+- [ ] Movement is smooth (not jerky)
+- [ ] Correct direction
+- [ ] No error message
+
+⚠️ **SAFETY**: Use small step values (10-50) for testing!
+
+```bash
+# Emergency stop
+curl -X POST http://localhost:8000/api/stepper/abort
+```
+- [ ] Motor stops immediately
+- [ ] Status shows not moving
+
+#### System Metrics API
+```bash
+# Get metrics
+curl http://localhost:8000/api/system/metrics
+```
+- [ ] Returns JSON with metrics
+- [ ] cpuTemp is reasonable (40-70°C)
+- [ ] cpuUsage is 0-100
+- [ ] memoryUsage and memoryTotal present
+- [ ] uptime is formatted string
+
+### Performance Tests
+
+#### Camera Performance
+- [ ] Camera stream is smooth (not choppy)
+- [ ] No significant lag (< 1 second)
+- [ ] FPS is stable (around configured value)
+- [ ] CPU usage is reasonable (< 80%)
+
+#### Network Performance
+- [ ] Dashboard loads quickly (< 3 seconds)
+- [ ] API calls respond quickly (< 500ms)
+- [ ] No timeout errors
+
+### Production Readiness Tests
+
+#### Systemd Service
+- [ ] Service file created
+- [ ] Service enables without errors
+- [ ] Service starts automatically
+- [ ] Service restarts on failure
+- [ ] Logs accessible via journalctl
+
+#### Stability
+- [ ] Run for 24 hours without crashes
+- [ ] Memory usage stable (not increasing)
+- [ ] CPU usage reasonable
+- [ ] No error accumulation in logs
+
+---
+
+## Security Checklist
+
+- [ ] API bound to 127.0.0.1 only (not exposed directly)
+- [ ] Nginx rate limiting enabled for `/api/stepper/*`
+- [ ] Cloudflare Access or HTTP Basic Auth enabled for `/secure/`
+- [ ] TURN uses static-auth-secret (not static credentials)
+- [ ] SSL/TLS certificates valid and auto-renewing
+- [ ] Firewall (ufw) configured to allow only necessary ports
+- [ ] `.env` files have restricted permissions (600)
+
+```bash
+chmod 600 .env
+```
+
+### Security Hardening Summary
+
+- ✅ Bind API to `127.0.0.1` only (not `0.0.0.0`)
+- ✅ Use Nginx reverse proxy with SSL/TLS
+- ✅ Add authentication (Cloudflare Access, HTTP Basic Auth, etc.)
+- ✅ Rate limit actuator endpoints (`/api/stepper/*`, `/api/valve/*`)
+- ✅ Restrict `.env` file permissions: `chmod 600 .env`
+- ✅ Keep system and dependencies updated
+- ✅ Only expose actuator routes on the authenticated/secure vhost
+
+---
+
+## Maintenance
+
+### Update Certificates (auto-renewed by certbot)
+```bash
+sudo certbot renew --dry-run
+```
+
+### Update Code
+```bash
+cd /var/www/secure/uuplastination-secure
+git pull
+sudo systemctl restart uuplastination-api.service
+
+# On Pi
+cd /home/pi/uuplastination-secure
+git pull
+sudo systemctl restart pi-camera-publisher.service
+```
+
+### Restart Services
+```bash
+# Server
+sudo systemctl restart uuplastination-api.service
+cd /var/www/secure/uuplastination-secure/webrtc
+docker compose restart
+
+# Pi
+sudo systemctl restart pi-camera-publisher.service
+```
+
+---
+
 ## Troubleshooting
 
-### Publisher keeps restarting
+### Publisher Keeps Restarting
 
 **Check ribbon cable:**
 ```bash
@@ -383,7 +654,7 @@ vcgencmd get_camera
 groups pi | grep video  # Should include 'video' group
 ```
 
-### WebRTC connection fails, only MJPEG works
+### WebRTC Connection Fails, Only MJPEG Works
 
 **Verify token generation:**
 ```bash
@@ -402,7 +673,7 @@ openssl s_client -connect turn.uuplastination.com:5349
 - "ICE failed" → TURN server not reachable or misconfigured
 - "Track subscription timeout" → Publisher not connected to LiveKit
 
-### MJPEG gives 503 error
+### MJPEG Gives 503 Error
 
 **On non-Pi systems:**
 - Expected if picamera2 not installed
@@ -417,7 +688,7 @@ libcamera-hello
 sudo journalctl -u uuplastination-api.service -n 50
 ```
 
-### High latency or buffering
+### High Latency or Buffering
 
 **Reduce bitrate:**
 Edit `webrtc/pi_rtmp_publisher.sh` and add `-b:v 1500k` to ffmpeg command.
@@ -431,49 +702,61 @@ ping livekit.uuplastination.com
 iperf3 -c your-server-ip
 ```
 
-## Maintenance
-
-### Update certificates (auto-renewed by certbot)
-```bash
-sudo certbot renew --dry-run
-```
-
-### Update code
-```bash
-cd /var/www/secure/uuplastination-secure
-git pull
-sudo systemctl restart uuplastination-api.service
-
-# On Pi
-cd /home/pi/uuplastination-secure
-git pull
-sudo systemctl restart pi-camera-publisher.service
-```
-
-### Restart services
-```bash
-# Server
-sudo systemctl restart uuplastination-api.service
-cd /var/www/secure/uuplastination-secure/webrtc
-docker compose restart
-
-# Pi
-sudo systemctl restart pi-camera-publisher.service
-```
-
-## Security Checklist
-
-- [ ] API bound to 127.0.0.1 only (not exposed directly)
-- [ ] Nginx rate limiting enabled for `/api/stepper/*`
-- [ ] Cloudflare Access or HTTP Basic Auth enabled for `/secure/`
-- [ ] TURN uses static-auth-secret (not static credentials)
-- [ ] SSL/TLS certificates valid and auto-renewing
-- [ ] Firewall (ufw) configured to allow only necessary ports
-- [ ] `.env` files have restricted permissions (600)
+### GPIO Issues
 
 ```bash
-chmod 600 .env
+# Check GPIO permissions
+groups | grep gpio
+
+# Test enable pin
+curl -X POST http://localhost:8000/api/stepper/enable
+curl http://localhost:8000/api/stepper/status
+
+# Try different direction
+curl -X POST "http://localhost:8000/api/stepper/step?steps=50&direction=fwd"
+curl -X POST "http://localhost:8000/api/stepper/step?steps=50&direction=rev"
+
+# Check enable inversion
+# Edit .env and change:
+# STEPPER_INVERT_ENABLE=0
+# Then restart app
 ```
+
+### Service Logs
+
+```bash
+# View service status
+sudo systemctl status uuplastination-stats.service
+
+# Follow live logs
+sudo journalctl -u uuplastination-stats.service -f
+
+# View last 100 lines
+sudo journalctl -u uuplastination-stats.service -n 100
+```
+
+---
+
+## Success Criteria
+
+Your installation is successful if:
+- ✅ Dashboard loads and displays properly
+- ✅ Camera feed shows live video
+- ✅ Valve control buttons move the motor
+- ✅ System metrics display and update
+- ✅ No errors in browser console
+- ✅ API endpoints respond correctly
+- ✅ Motor moves smoothly in both directions
+
+---
+
+## Performance Characteristics
+
+- **Latency**: <1 second (WebRTC), 2-5 seconds (MJPEG fallback)
+- **Bandwidth**: ~1.5-3 Mbps (depends on resolution/fps)
+- **CPU (Pi)**: ~10-20% (hardware H.264 encode)
+- **CPU (Server)**: Minimal (LiveKit SFU, not transcoding)
+- **Reliability**: Auto-reconnects, systemd supervision, health monitoring
 
 ---
 
