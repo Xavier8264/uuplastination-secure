@@ -424,12 +424,10 @@ sudo udevadm trigger
 
 ## 📚 Documentation
 
-- **[SETUP.md](SETUP.md)** - Detailed setup and installation guide
-- **[GPIO_SETUP.md](GPIO_SETUP.md)** - Complete GPIO pinout reference and wiring diagrams
+- **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Complete setup, GPIO configuration, and installation guide
+- **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** - Production deployment, testing checklists, and security guidelines
+- **[TECHNICAL_REFERENCE.md](TECHNICAL_REFERENCE.md)** - API reference, WebRTC integration, and implementation details
 - **[.env.example](.env.example)** - Full environment variable documentation
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment and security guidelines
-- **[WEBRTC.md](WEBRTC.md)** - WebRTC/LiveKit integration guide
-- **[VALVE_API.md](VALVE_API.md)** - Valve control API documentation
 
 ## 🤝 Contributing
 
