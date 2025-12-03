@@ -117,12 +117,7 @@
 <body>
   <header>
     <div class="title">Plastination Control System</div>
-    <div class="chip mono" id="rec-chip">
-      <span id="rec-dot">●</span>
-      <span id="rec-label">Standby</span>
-    </div>
     <div style="display:flex; gap:10px">
-      <button class="btn" id="toggle-record">Toggle Recording</button>
       <a class="btn danger" href="https://uuplastination.com">Logout</a>
     </div>
   </header>
@@ -161,7 +156,7 @@
         </div>
 
         <!-- Tank HLS Stream (RTMP->HLS) -->
-        <div class="card">
+        <!-- <div class="card">
           <div class="hdr">
             <h3>Plastination Tank HLS Stream</h3>
             <span class="badge" id="hls-status">Initializing…</span>
@@ -174,10 +169,10 @@
               </div>
             </div>
           </div>
-        </div>
+        </div> -->
 
         <!-- Bubble Rate History (placeholder; regenerates mock data) -->
-        <div class="card">
+        <!-- <div class="card">
           <div class="hdr">
             <h3>Bubble Rate History</h3>
             <div style="display:flex; gap:8px">
@@ -197,7 +192,7 @@
             </div>
             <div class="footer mono" id="points">0 data points</div>
           </div>
-        </div>
+        </div> -->
       </section>
 
       <!-- Right column (≈30%) -->
@@ -215,7 +210,7 @@
         </div>
 
         <!-- Bubble Rate Stats -->
-        <div class="card">
+        <!-- <div class="card">
           <div class="hdr"><h3>Bubble Rate Monitor</h3><span class="badge" style="background:rgba(0, 122, 255, 0.1); color:var(--primary); border-color:rgba(0, 122, 255, 0.2)">● Live</span></div>
           <div class="body">
             <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px">
@@ -246,10 +241,10 @@
             </div>
             <div class="footer">Detection: <span style="color:var(--success)">● Running</span></div>
           </div>
-        </div>
+        </div> -->
 
         <!-- System Health -->
-        <div class="card">
+        <!-- <div class="card">
           <div class="hdr"><h3>System Health</h3><span class="badge success">All Systems Operational</span></div>
           <div class="body">
             <div class="kv"><span class="muted">CPU Temperature</span><strong class="mono" id="cpu-temp">52.0°C</strong></div>
@@ -262,7 +257,7 @@
             <div class="kv"><span class="muted">Network</span><span class="badge success">Active</span></div>
             <div class="footer">Raspberry Pi 5 (8GB) • Raspberry Pi OS 64‑bit • Uptime: <span id="uptime">4d 12h 34m</span></div>
           </div>
-        </div>
+        </div> -->
       </aside>
     </div>
   </main>
@@ -303,26 +298,13 @@
     // Auth token for valve API (set VALVE_API_TOKEN env to match). Replace placeholder.
     const VALVE_TOKEN = "CHANGE_ME_TOKEN";
 
-    // --- Header recording toggle (placeholder) ---
-    const recBtn = document.getElementById('toggle-record');
-    const recChip = document.getElementById('rec-chip');
-    const recLabel = document.getElementById('rec-label');
-    const recDot = document.getElementById('rec-dot');
-    let isRecording = false;
-    recBtn.addEventListener('click', async () => {
-      isRecording = !isRecording;
-      recLabel.textContent = isRecording ? 'Recording' : 'Standby';
-      recDot.style.color = isRecording ? 'var(--danger)' : 'var(--muted)';
-      // Optional: await fetch('/api/recording/toggle', {method:'POST'});
-    });
-
     // --- Live clock on camera ---
-    const clockEl = document.getElementById('clock');
+    /* const clockEl = document.getElementById('clock');
     setInterval(()=> clockEl.textContent = new Date().toLocaleTimeString(), 1000);
-    const camMetaEl = document.getElementById('cam-meta');
+    const camMetaEl = document.getElementById('cam-meta'); */
 
     // --- Camera bubble-detection chip (simulated) ---
-    const bubbleChip = document.getElementById('bubble-chip');
+    /* const bubbleChip = document.getElementById('bubble-chip');
     // If real bubble data available, fetch and display it here
     // Otherwise, clarify as simulated
     let bubbleSimNoticeShown = false;
@@ -332,7 +314,7 @@
       if (!bubbleSimNoticeShown) {
         bubbleSimNoticeShown = true;
       }
-    }, 2000);
+    }, 2000); */
 
     // --- Valve control (simplified: only Open/Close) ---
     const stateEl = document.getElementById('valve-state');
@@ -362,7 +344,7 @@
     closeBtn.addEventListener('click', ()=> sendValve(CONFIG.valveClose, 'Closing'));
 
     // --- Bubble rate stats (simulated drift) ---
-    const nowEl = document.getElementById('rate-now');
+    /* const nowEl = document.getElementById('rate-now');
     const avgEl = document.getElementById('rate-avg');
     const peakEl = document.getElementById('rate-peak');
     const minEl = document.getElementById('rate-min');
@@ -381,10 +363,10 @@
       else if(r < prev-2){ t='↓'; ic='↓'; }
       trendTxt.textContent = t; trendIcon.textContent = ic;
     }
-    setInterval(updateRates, 3000);
+    setInterval(updateRates, 3000); */
 
     // --- System metrics (try backend, else simulate) ---
-    const cpuTempEl  = document.getElementById('cpu-temp');
+    /* const cpuTempEl  = document.getElementById('cpu-temp');
     const cpuUsageEl = document.getElementById('cpu-usage');
     const memUsageEl = document.getElementById('mem-usage');
     const uptimeEl   = document.getElementById('uptime');
@@ -402,7 +384,7 @@
           if(m.uptime) uptimeEl.textContent = m.uptime;
           return;
         }
-      }catch(_){/* fallthrough to simulate */}
+      }catch(_){}
       // simulate
       const currT = parseFloat(cpuTempEl.textContent)||52;
       const currU = parseInt(cpuUsageEl.textContent)||34;
@@ -432,10 +414,10 @@
     }
     
     setInterval(tickMetrics, 3000);
-    setInterval(tickStepperStatus, 1000);
+    setInterval(tickStepperStatus, 1000); */
 
-    <!-- // --- Chart (SVG, mock data) ---
-    const svg = document.getElementById('chart-svg');
+     // --- Chart (SVG, mock data) ---
+    /* const svg = document.getElementById('chart-svg');');
     const ylabels = document.getElementById('ylabels');
     const pointsEl = document.getElementById('points');
     let timeRange = '1h';
@@ -492,10 +474,10 @@
         timeRange = e.currentTarget.getAttribute('data-range');
         genChart();
       });
-    });
+    }); */
 
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <!-- <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
     // Lightweight HLS player initialization for tank stream
     (function initHLS(){
@@ -592,8 +574,8 @@
       }
       start();
     })();
-  </script>
-  <script src="https://cdn.livekit.io/livekit-client-v1.15.3.min.js" crossorigin="anonymous"></script>
+  </script> -->
+  <!-- <script src="https://cdn.livekit.io/livekit-client-v1.15.3.min.js" crossorigin="anonymous"></script>
   <script>
     // Robust WebRTC connection attempt with retries and graceful fallback to MJPEG
     (function initWebRTC(){
@@ -787,7 +769,7 @@
           }
         });
       }
-    })(); -->
-  </script> 
+    })();
+  </script> --> 
 </body>
 </html>
