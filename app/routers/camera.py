@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import glob
 import io
 import os
 import threading
@@ -93,19 +94,35 @@ class CameraController:
                 if not CV2_AVAILABLE:
                     raise
         if self.picam2 is None and CV2_AVAILABLE:
-            # OpenCV device; allow override via env CAMERA_DEVICE or use numeric index
-            dev = os.getenv("CAMERA_DEVICE", "/dev/video0")
-            try:
-                self.cap = cv2.VideoCapture(dev)
-                if not self.cap.isOpened():
-                    raise RuntimeError(f"Failed to open camera device {dev}")
-                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.resolution[0])
-                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.resolution[1])
-                self.cap.set(cv2.CAP_PROP_FPS, self.framerate)
-                print(f"OpenCV camera ready on {dev}: {self.resolution[0]}x{self.resolution[1]} @ {self.framerate}fps")
-            except Exception:
-                self.cap = None
-                raise
+            # OpenCV device; allow override via env CAMERA_DEVICE or try first available /dev/video*
+            candidates = [os.getenv("CAMERA_DEVICE", "/dev/video0")]
+            candidates += sorted(glob.glob("/dev/video*"))
+
+            def _open_cap(dev_path):
+                cap = cv2.VideoCapture(dev_path)
+                if not cap.isOpened():
+                    cap.release()
+                    return None
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.resolution[0])
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.resolution[1])
+                cap.set(cv2.CAP_PROP_FPS, self.framerate)
+                return cap
+
+            for dev in candidates:
+                try:
+                    cap = _open_cap(dev)
+                    if cap:
+                        self.cap = cap
+                        print(f"OpenCV camera ready on {dev}: {self.resolution[0]}x{self.resolution[1]} @ {self.framerate}fps")
+                        break
+                    else:
+                        print(f"OpenCV camera probe failed on {dev}")
+                except Exception as e:
+                    print(f"OpenCV camera error on {dev}: {e}")
+                    continue
+
+            if self.cap is None:
+                raise RuntimeError("No usable /dev/video* device found for OpenCV")
 
     def start(self):
         """Start the camera streaming."""
