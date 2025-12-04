@@ -11,7 +11,7 @@ The serial port is kept open indefinitely for better performance.
 import os
 import atexit
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 try:
     import serial
@@ -87,13 +87,28 @@ def _send_char(ch: str) -> None:
         raise HTTPException(status_code=500, detail=f"Error: {e}")
 
 @router.post("/open")
-def valve_open() -> str:
-    """Send 'r' character to open the valve."""
-    _send_char("r")
+def valve_open(background_tasks: BackgroundTasks) -> str:
+    """Send 'r' character to open the valve without waiting for a response."""
+
+    def _write_open():
+        try:
+            _send_char("r")
+        except Exception as exc:  # noqa: BLE001 - log and swallow to keep one-way behavior
+            # Best-effort fire-and-forget; log for diagnostics without surfacing errors to the client.
+            print(f"[valve] open write failed: {exc}", flush=True)
+
+    background_tasks.add_task(_write_open)
     return "OK"
 
 @router.post("/close")
-def valve_close() -> str:
-    """Send 'l' character to close the valve."""
-    _send_char("l")
+def valve_close(background_tasks: BackgroundTasks) -> str:
+    """Send 'l' character to close the valve without waiting for a response."""
+
+    def _write_close():
+        try:
+            _send_char("l")
+        except Exception as exc:  # noqa: BLE001 - log and swallow to keep one-way behavior
+            print(f"[valve] close write failed: {exc}", flush=True)
+
+    background_tasks.add_task(_write_close)
     return "OK"
