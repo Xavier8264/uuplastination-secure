@@ -11,7 +11,7 @@ The serial port is kept open indefinitely for better performance.
 import os
 import atexit
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks
 
 try:
     import serial
@@ -21,7 +21,7 @@ except ImportError:
 router = APIRouter(prefix="/api/valve", tags=["valve"])
 
 # Configuration
-DEVICE_PATH = "/dev/ttyACM0"
+DEVICE_PATH = os.getenv("VALVE_SERIAL_DEVICE", "/dev/ttyACM0")
 BAUD_RATE = int(os.getenv("VALVE_SERIAL_BAUD", "115200"))
 WRITE_TIMEOUT = 0.5
 
@@ -33,7 +33,8 @@ def _get_serial_connection():
     global _serial_connection
     
     if serial is None:
-        raise HTTPException(status_code=500, detail="pyserial not installed")
+        print("[valve] pyserial not installed; skipping serial write", flush=True)
+        return None
     
     # If connection exists and is open, return it
     if _serial_connection is not None and _serial_connection.is_open:
@@ -49,13 +50,11 @@ def _get_serial_connection():
             exclusive=True  # Ensure exclusive access
         )
         return _serial_connection
-    except serial.SerialException as e:
-        error_msg = str(e).lower()
-        if "busy" in error_msg or "permission denied" in error_msg or "resource busy" in error_msg:
-            raise HTTPException(status_code=503, detail=f"Serial port busy: {e}")
-        raise HTTPException(status_code=500, detail=f"Serial error: {e}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {e}")
+        # Best-effort: log and return None so we never raise to the client.
+        print(f"[valve] failed to open serial {DEVICE_PATH}: {e}", flush=True)
+        _serial_connection = None
+        return None
 
 def _close_serial_connection():
     """Close the serial connection on shutdown."""
@@ -70,21 +69,19 @@ def _close_serial_connection():
 atexit.register(_close_serial_connection)
 
 def _send_char(ch: str) -> None:
-    """Send a single character through the persistent serial port."""
+    """Send a single character through the persistent serial port (best effort)."""
+    ser = _get_serial_connection()
+    if ser is None:
+        print(f"[valve] no serial connection; skipped write '{ch}'", flush=True)
+        return
+
     try:
-        ser = _get_serial_connection()
         ser.write(ch.encode("utf-8"))
         ser.flush()
-    except serial.SerialException as e:
-        # Connection might have been lost, try to reconnect
+    except Exception as e:  # Swallow errors to keep API one-way OK
         global _serial_connection
         _serial_connection = None
-        error_msg = str(e).lower()
-        if "busy" in error_msg or "permission denied" in error_msg or "resource busy" in error_msg:
-            raise HTTPException(status_code=503, detail=f"Serial port busy: {e}")
-        raise HTTPException(status_code=500, detail=f"Serial error: {e}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {e}")
+        print(f"[valve] write failed, clearing connection: {e}", flush=True)
 
 @router.post("/open")
 def valve_open(background_tasks: BackgroundTasks) -> str:
